@@ -1,0 +1,28 @@
+/* Tokens mirror docs/ceylon-compass-dataset/brand/brand_pack.json */
+:root {
+  --black: #111111;
+  --white: #ffffff;
+  --orange: #f26b1d;
+  --teal: #14837b;
+  --leaf: #4ca64c;
+  --sun: #f5b700;
+  --sky: #3a8dde;
+  --coral: #e5533d;
+  --surface: #ffffff;
+  --text: #111111;
+  --muted: #5f5f5f;
+  --border: #e6e6e6;
+
+  --font: Inter, Helvetica, Arial, sans-serif;
+  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px; --fs-xxl: 36px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --r-card: 12px; --r-button: 999px; --r-input: 8px;
+  --card-max: 320px;
+  --t-fast: 150ms; /* brand rule: transitions under 200 ms, no scroll/parallax animation */
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--text); font-family: var(--font); font-size: var(--fs-md); }
+.shell { max-width: 960px; margin: 0 auto; padding: var(--sp-5) var(--sp-4); }
+.muted { color: var(--muted); }
+h1 { font-size: var(--fs-xl); font-weight: 700; }

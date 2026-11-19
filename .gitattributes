@@ -1,0 +1,5 @@
+# Keep the provided dataset byte-for-byte unchanged (no CRLF conversion)
+docs/** -text
+*.xlsx binary
+*.pdf binary
+*.docx binary

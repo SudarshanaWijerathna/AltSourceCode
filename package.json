@@ -1,0 +1,17 @@
+{
+  "name": "ceylon-compass-mira",
+  "private": true,
+  "description": "Mira - AI travel booking assistant for Ceylon Compass Holidays",
+  "scripts": {
+    "setup": "npm install && node scripts/setup-backend.mjs && npm --prefix frontend install",
+    "start": "npm run setup && npm run dev",
+    "dev": "concurrently -k -n api,web -c cyan,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "node scripts/py.mjs -m uvicorn mira.main:app --reload --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "node scripts/py.mjs -m pytest",
+    "eval": "node scripts/py.mjs -m mira.evals.run"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
