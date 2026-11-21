@@ -125,7 +125,11 @@ message as the traveller) and the booking form.
 
 - **Brand:** `frontend/scripts/brand-css.mjs` generates CSS variables from
   `brand/brand_pack.json` before every dev/build; one accent colour per card, cards ≤ 320 px,
-  Inter, transitions < 200 ms, no scroll animation.
+  transitions < 200 ms, no scroll animation. Typeface: Google Sans Flex (a deliberate override of
+  the brand pack's Inter, which stays as the fallback stack). Chat scrollbars are hidden; it still scrolls.
+  Exception to the 200 ms rule: the start-screen transition (the Mira mark flying to the first reply
+  and the prompt bar sliding down) takes 600 ms so the change of layout is easy to follow; it is
+  switched off for users who prefer reduced motion.
 - **Mobile and desktop:** checked in headless Edge at 1280×900 and 390×844 (no horizontal overflow).
 - **Mock booking/payment:** `POST /booking` charges the stored quote's deposit (the browser never
   sends a price). "Test mode" lets the demo pick *card declined* or *booking system down*; both give

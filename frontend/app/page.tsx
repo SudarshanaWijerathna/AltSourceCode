@@ -2,9 +2,12 @@
 // The conversation is the product: a branded header, a welcome-back card for returning visitors,
 // and Mira's chat, full height on any screen.
 import { CopilotChat, useAgent } from "@copilotkit/react-core/v2";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { usd } from "@/lib/catalog";
+import { useCentredPrompt } from "@/lib/useCentredPrompt";
+import { useMarkFlight } from "@/lib/useMarkFlight";
+import { usePromptBarShape } from "@/lib/usePromptBarShape";
 import { forgetVisitor, type LastQuote, visitorThread, type Welcome } from "@/lib/visitor";
 
 const NEW_VISITOR =
@@ -29,12 +32,17 @@ function welcomeText(w: Welcome | null): string {
 }
 
 function WelcomeBack({ q }: { q: LastQuote }) {
+  // Closing hides the card for this page view only; it shows again on the next load.
+  const [closed, setClosed] = useState(false);
+  if (closed) return null;
+  const close = () => setClosed(true);
   return (
     <aside className="welcome mira-card" style={{ ["--accent" as string]: "var(--accent-leaf)" }}>
+      <button className="welcome__close" onClick={close} aria-label="Close welcome back message">×</button>
       <p className="mira-card__label">Welcome back · your last quote</p>
-      <p className="welcome__trip"><strong>{q.tour_title ?? q.tour_id}</strong> · {party(q)} · from {q.start_date}</p>
+      <p className="welcome__trip"><strong>{q.tour_title ?? q.tour_id}</strong> · <span className="nowrap">{party(q)}</span> · <span className="nowrap">from {q.start_date}</span></p>
       {q.still_valid && q.price_usd ? (
-        <p className="welcome__price">{usd(Number(q.price_usd))} total · deposit {usd(Number(q.deposit_usd))}</p>
+        <p className="welcome__price"><span className="nowrap">{usd(Number(q.price_usd))} total</span> · <span className="nowrap">deposit {usd(Number(q.deposit_usd))}</span></p>
       ) : (
         <p className="mira-source">Prices change with dates and rates, so ask Mira to re-check it.</p>
       )}
@@ -42,13 +50,17 @@ function WelcomeBack({ q }: { q: LastQuote }) {
   );
 }
 
-/** Mira's opening line, shown until the conversation starts. */
+/** Start screen: Mira's mark and opening line in the middle, the prompt bar lifted under them. */
 function Greeting({ text }: { text: string }) {
   const { agent } = useAgent({ agentId: "mira" });
-  if (agent.messages.length > 0) return null;
+  const empty = agent.messages.length === 0;
+  const mark = useRef<HTMLImageElement>(null);
+  useCentredPrompt(empty);
+  useMarkFlight(empty, mark);
+  if (!empty) return null;
   return (
-    <div className="greeting" role="status">
-      <span className="greeting__name">Mira</span>
+    <div className="intro" role="status">
+      <img ref={mark} className="intro__mark" src="/brand/mira.svg" alt="Mira" width={120} height={71} />
       <p>{text}</p>
     </div>
   );
@@ -57,6 +69,7 @@ function Greeting({ text }: { text: string }) {
 export default function Home() {
   const [thread, setThread] = useState<{ visitorId: string; threadId: string } | null>(null);
   const [welcome, setWelcome] = useState<Welcome | null>(null);
+  const { narrow } = usePromptBarShape();
 
   useEffect(() => {
     const t = visitorThread();
@@ -70,8 +83,9 @@ export default function Home() {
   return (
     <div className="shell">
       <header className="topbar">
-        <span className="topbar__mark" aria-hidden>◆</span>
+        <img className="topbar__logo" src="/brand/CeylonCompassHolidays.svg" alt="" width={34} height={34} />
         <span className="topbar__name">Ceylon Compass Holidays</span>
+        <span className="topbar__sep" aria-hidden>|</span>
         <span className="topbar__tag">Plan, price and book with Mira</span>
         {welcome?.returning && (
           <button className="topbar__forget" onClick={() => { forgetVisitor(); location.reload(); }}>
@@ -79,9 +93,11 @@ export default function Home() {
           </button>
         )}
       </header>
+      <div className="content">
       {welcome?.last_quote && <WelcomeBack q={welcome.last_quote} />}
       <main className="chat">
         {thread && welcome && <Greeting text={welcomeText(welcome)} />}
+        <p className="chat-note">AI can make mistakes. Please verify important information.</p>
         {thread && welcome && (
           <CopilotChat
             agentId="mira"
@@ -89,11 +105,14 @@ export default function Home() {
             labels={{
               modalHeaderTitle: "Mira",
               welcomeMessageText: welcomeText(welcome),
-              chatInputPlaceholder: "Try: Sigiriya day tour for 2 adults on 10 January 2027",
+              chatInputPlaceholder: narrow
+                ? "Ask Mira about a tour…"
+                : "Try: Sigiriya day tour for 2 adults on 10 January 2027",
             }}
           />
         )}
       </main>
+      </div>
     </div>
   );
 }

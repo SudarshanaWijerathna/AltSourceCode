@@ -187,7 +187,7 @@ export default function StaffPage() {
   return (
     <div className="staff">
       <header className="topbar">
-        <span className="topbar__mark" aria-hidden>◆</span>
+        <img className="topbar__logo" src="/brand/CeylonCompassHolidays.svg" alt="" width={34} height={34} />
         <span className="topbar__name">Ceylon Compass · Staff</span>
         {me && (
           <>

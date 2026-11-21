@@ -8,28 +8,32 @@ body {
   margin: 0;
   background: var(--brand-surface);
   color: var(--brand-text);
-  font-family: var(--font-inter), var(--font);
+  font-family: var(--font-app), var(--font);
   font-size: var(--fs-md);
 }
 
 .shell { display: flex; flex-direction: column; height: 100dvh; }
 
 .topbar {
-  display: flex; align-items: baseline; gap: var(--sp-3);
+  display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--brand-border);
 }
-.topbar__mark { color: var(--brand-orange); font-size: var(--fs-lg); }
-.topbar__name { font-weight: var(--fw-bold); font-size: var(--fs-lg); }
+.topbar__logo { display: block; width: 34px; height: 34px; align-self: center; flex: none; }
+.topbar__name { font-weight: var(--fw-regular); font-size: var(--fs-lg); }
 .topbar__tag { color: var(--brand-muted); font-size: var(--fs-sm); }
-@media (max-width: 520px) { .topbar__tag { display: none; } }
+.topbar__sep { color: var(--brand-muted); opacity: .5; font-size: var(--fs-lg); line-height: 1; }
+@media (max-width: 520px) { .topbar__tag, .topbar__sep { display: none; } }
 
 .chat { flex: 1; min-height: 0; width: 100%; max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; }
 .chat > :last-child { flex: 1; min-height: 0; }
-.greeting { margin: var(--sp-5) var(--sp-4) 0; max-width: 620px; font-size: var(--fs-md); line-height: 1.5; }
-.greeting p { margin: var(--sp-1) 0 0; }
-.greeting__name { color: var(--brand-orange); font-size: var(--fs-xs); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: .04em; }
-.chat, .chat * { font-family: var(--font-inter), var(--font); }
+.chat, .chat * { font-family: var(--font-app), var(--font); }
+/* Form controls don't inherit fonts by default. */
+button, input, select, textarea { font-family: var(--font-app), var(--font); }
+
+/* No visible scrollbars in the chat; it still scrolls with wheel, touch and keyboard. */
+.chat, .chat * { scrollbar-width: none; -ms-overflow-style: none; }
+.chat ::-webkit-scrollbar, .chat::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
 /* --- catalog cards ------------------------------------------------------- */
 .mira-card {
@@ -110,6 +114,16 @@ body {
 .welcome { max-width: 860px; width: calc(100% - 2 * var(--sp-4)); margin: var(--sp-3) auto 0; }
 .welcome__trip { margin: 0 0 var(--sp-1); font-size: var(--fs-sm); }
 .welcome__price { margin: 0; font-weight: var(--fw-semibold); }
+.welcome { position: relative; padding-right: 48px; }
+.welcome__close {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  width: 32px; height: 32px; display: grid; place-items: center;
+  font: inherit; font-size: 22px; line-height: 1; color: var(--brand-muted);
+  background: none; border: 0; border-radius: var(--r-button); cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+.welcome__close:hover { background: var(--brand-border); color: var(--brand-text); }
+.welcome__close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* --- staff page ----------------------------------------------------------- */
 .staff { min-height: 100dvh; }
@@ -154,3 +168,148 @@ body {
 .draft__md { white-space: pre-wrap; font-size: var(--fs-xs); background: #fafafa; padding: var(--sp-3); border-radius: var(--r-input); max-height: 360px; overflow: auto; }
 .draft__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
 @media (max-width: 720px) { .staff-command { flex-direction: column; } .staff-tabs { margin-left: 0; } }
+
+/* Hide CopilotKit's "Add attachments" (+) button: attachments are not enabled, so it is always
+   disabled, and Mira only reads message text. */
+.chat button[aria-label="Add attachments"] { display: none; }
+
+/* Prompt bar: always one row (CopilotKit's two-row layout is turned off; below ~800px it is
+   width-triggered and makes even an empty bar 114px tall). The textarea grows in place when text
+   wraps, so the layout never switches and cannot flicker.
+   One line: a full pill, radius = half the 66px height, and the send/stop button 15px from the
+   top, bottom and right: (66px - 36px) / 2. Wrapped text: a rounded rectangle, button stays 15px
+   from the bottom-right corner. */
+.chat .copilotKitInput { border-radius: 33px; }
+.chat .copilotKitInput > div {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto;
+  align-items: end;
+  padding-right: 15px;
+}
+.chat .copilotKitInput > div > div { grid-row: 1; }
+.chat .copilotKitInput > div > div:first-child { grid-column: 1; }
+.chat .copilotKitInput > div > div:has(textarea) { grid-column: 2; }
+.chat .copilotKitInput > div > div:last-child { grid-column: 3; margin-bottom: 7px; } /* 8px padding + 7px = 15px */
+.chat .copilotKitInput div:has(> button):not(:has(textarea)) { margin-right: 0; }
+
+/* Page frame. The content (everything under the header) is its own column; on desktop it sits in a
+   rounded, bordered box with a margin around it, and the header stands outside the box. Phones keep
+   the full-bleed layout with a divider under the header. */
+.content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+@media (min-width: 768px) {
+  body { background: #F7F8FC; }   /* page and header, outside the box */
+  .topbar { border-bottom: 0; background: transparent; }
+  .content, .staff .page {
+    background: #FFFFFF;
+    margin: 0 var(--sp-4) var(--sp-4);
+    border: 1px solid var(--brand-border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .staff { display: flex; flex-direction: column; height: 100dvh; }
+  .staff .page { flex: 1; min-height: 0; overflow: auto; max-width: none; padding: var(--sp-5); }
+}
+
+/* Mira's mark (public/brand/mira.svg, 451x267) to the left of each of Mira's replies and the
+   greeting; reply text and cards are indented to make a gutter for it. The mark is centred on the
+   first line of the reply (measured: first line centre 34px below the message top), and on the
+   "Mira" label in the greeting. */
+.chat .copilotKitAssistantMessage { position: relative; padding-left: 52px; }
+.chat .copilotKitAssistantMessage::before {
+  content: ""; position: absolute; left: 0; top: 23px;
+  width: 36px; height: 22px;
+  background: url("/brand/mira.svg") no-repeat left center / contain;
+}
+/* Phones: no gutter (it wasted width); the mark sits above each reply, left-aligned with the text. */
+@media (max-width: 520px) {
+  .chat .copilotKitAssistantMessage { padding-left: 0; padding-top: 12px; }
+  .chat .copilotKitAssistantMessage::before { width: 32px; height: 19px; top: 0; left: 0; }
+}
+
+/* Start screen (empty conversation): Mira's mark large and centred with the greeting under it; the
+   prompt bar is lifted to just below the centre by useCentredPrompt and slides down when the first
+   message is sent (600ms; deliberately longer than the brand pack's 200ms rule). */
+.chat { position: relative; }
+.intro {
+  position: absolute; left: 50%; top: 50%; z-index: 1;
+  transform: translate(-50%, calc(-100% - 24px));
+  width: min(620px, calc(100% - 2 * var(--sp-4)));
+  text-align: center; pointer-events: none;
+}
+.intro__mark { display: block; width: 120px; height: auto; margin: 0 auto var(--sp-4); }
+.intro p { margin: 0; font-size: var(--fs-lg); line-height: 1.45; color: var(--brand-text); }
+/* !important: CopilotKit puts an inline "transition: transform 0.2s" on this wrapper. */
+.prompt-wrap--animate { transition: transform 600ms cubic-bezier(.2, .8, .2, 1) !important; } /* = mark flight duration */
+.prompt-note { visibility: hidden; }
+/* Fixed copy of CopilotKit's disclaimer, always at the bottom of the chat (same size and spacing). */
+.chat-note { position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; padding: 12px 16px;
+  font-size: 12px; line-height: 16px; text-align: center; color: var(--brand-muted); pointer-events: none; }
+@media (max-width: 520px) {
+  .intro__mark { width: 88px; }
+  .intro p { font-size: var(--fs-md); }
+}
+@media (prefers-reduced-motion: reduce) { .prompt-wrap--animate { transition: none !important; } }
+
+/* "Thinking" state: CopilotKit's pulsing dot appears before Mira's reply exists, so it gets the same
+   mark as a reply - in the gutter beside the dot on wide screens, above it on phones. */
+.chat div:has(> [data-testid="copilot-loading-cursor"]) {
+  position: relative; display: flex; align-items: center; min-height: 22px; padding-left: 52px;
+}
+.chat div:has(> [data-testid="copilot-loading-cursor"])::before {
+  content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 36px; height: 22px;
+  background: url("/brand/mira.svg") no-repeat left center / contain;
+}
+/* Three small dots instead of CopilotKit's single pulsing dot. Each dot is drawn by an element that
+   nothing else is inside, so no dot's movement carries another: the cursor element is an invisible
+   26px holder, its ::before / ::after are the outer dots, and the wrapper's ::after the middle one. */
+.chat [data-testid="copilot-loading-cursor"] {
+  position: relative; width: 26px; height: 6px; margin-left: 0;
+  background: none !important; animation: none !important;
+}
+.chat [data-testid="copilot-loading-cursor"]::before,
+.chat [data-testid="copilot-loading-cursor"]::after,
+.chat div:has(> [data-testid="copilot-loading-cursor"])::after {
+  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 50%;
+  background-color: var(--brand-muted); animation: mira-dots 1s ease-in-out infinite;
+}
+.chat [data-testid="copilot-loading-cursor"]::before { left: 0; top: 0; animation-delay: 0s; }
+.chat [data-testid="copilot-loading-cursor"]::after { left: 20px; top: 0; animation-delay: .3s; }
+.chat div:has(> [data-testid="copilot-loading-cursor"])::after { left: 62px; top: calc(50% - 3px); animation-delay: .15s; }
+@media (max-width: 520px) {
+  .chat div:has(> [data-testid="copilot-loading-cursor"])::after { left: 10px; top: 27px; }
+}
+@keyframes mira-dots {
+  0%, 80%, 100% { opacity: .3; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-3px); }
+}
+@media (max-width: 520px) {
+  .chat div:has(> [data-testid="copilot-loading-cursor"]) { display: block; min-height: 0; padding-left: 0; padding-top: 27px; }
+  .chat div:has(> [data-testid="copilot-loading-cursor"])::before { top: 0; transform: none; width: 32px; height: 19px; }
+}
+
+/* First prompt: the big mark flies to the first response's small mark (useMarkFlight). */
+.mira-ghost { position: fixed; z-index: 50; transform-origin: 0 0; pointer-events: none; margin: 0; }
+.chat.mira-flying div:has(> [data-testid="copilot-loading-cursor"])::before,
+.chat.mira-flying .copilotKitAssistantMessage::before { opacity: 0; }
+
+/* Welcome-back card: a notification in a light tint of the brand's leaf green (#4CA64C) with dark
+   green text from the same family (light green can't carry white text). Notification-sized type:
+   13px label, 14px body, 15px price; lighter weights. Text contrast on the tint: #1F5F24 ~7:1. */
+.welcome.mira-card {
+  background: #EEF7EE; color: #1F5F24;
+  border: 1px solid #CFE8CF; border-top: 1px solid #CFE8CF;
+  padding: var(--sp-3) 48px var(--sp-3) var(--sp-4);
+}
+.welcome .mira-card__label {
+  color: #2E7D32; text-transform: none; letter-spacing: 0;
+  font-size: 13px; font-weight: 500; line-height: 1.4; margin: 0 0 2px;
+}
+.welcome .welcome__trip { color: #1F5F24; font-size: var(--fs-sm); font-weight: var(--fw-regular); line-height: 1.5; margin: 0; }
+.welcome .welcome__trip strong { font-weight: 500; }
+.welcome .welcome__price { color: #1F5F24; font-size: 15px; font-weight: var(--fw-semibold); line-height: 1.4; margin: 2px 0 0; }
+.welcome .mira-source { color: #2E7D32; font-size: 13px; margin: 2px 0 0; }
+.welcome .welcome__close { color: #2E7D32; top: var(--sp-2); right: var(--sp-2); width: 28px; height: 28px; font-size: 18px; }
+.welcome .welcome__close:hover { background: #D9EED9; color: #1F5F24; }
+.welcome .welcome__close:focus-visible { outline-color: #2E7D32; }
+.nowrap { white-space: nowrap; }
