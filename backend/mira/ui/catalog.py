@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 
 class TravellerPicker(BaseModel):
@@ -54,6 +54,21 @@ Component = Annotated[
 _adapter = TypeAdapter(list[Component])
 
 
+_one = TypeAdapter(Component)
+
+
 def validate_components(payload: list[dict]) -> list[dict]:
     """Raises pydantic.ValidationError if any component is not in the catalog."""
     return [c.model_dump() for c in _adapter.validate_python(payload)]
+
+
+def validate_each(payload: list[dict]) -> tuple[list[dict], list[str]]:
+    """Keep valid components, drop invalid ones. Returns (valid, error descriptions)."""
+    valid, errors = [], []
+    for i, item in enumerate(payload):
+        try:
+            valid.append(_one.validate_python(item).model_dump())
+        except ValidationError as e:
+            name = item.get("component", "?") if isinstance(item, dict) else type(item).__name__
+            errors.append(f"#{i} {name}: {e.errors()[0]['msg']}")
+    return valid, errors

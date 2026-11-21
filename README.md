@@ -21,26 +21,37 @@ npm start                   # one command: installs everything, starts API (:800
 | `npm start` | Setup + run the whole system |
 | `npm run dev` | Run API and web (after setup) |
 | `npm test` | Backend unit tests (incl. pricing) |
+| `npm run chat` | Chat with Mira in the terminal (shows UI components and trace links) |
 | `npm run eval` | Run the evaluation suite → `evals/reports/` |
 
 "Today" is configurable with `MIRA_TODAY` (default `2026-11-19`, which the seed evals assume).
 
-## Architecture (planned)
+## Architecture
 
 ```
-Browser (Next.js + CopilotKit)
-   │  AG-UI events (text + validated UI component payloads)
-   ▼
-FastAPI ── LangGraph (typed MiraState)
-             router ──► discovery     (≤3 questions)
-                    ├─► answer        (retrieval over published content, citations)
-                    └─► pricing       (deterministic code → rates DB; no LLM arithmetic)
-                          ▼
-                     ui_composer      (picks catalog components, validates with Pydantic)
+Browser (Next.js + CopilotKit)          npm run chat (terminal)
+   │  POST /chat  (AG-UI bridge next)        │
+   ▼                                          ▼
+FastAPI ──► Mira.turn()  — one Langfuse trace per turn, session = conversation
+              │
+              ▼  LangGraph (typed MiraState, checkpointed per session)
+            router  (LLM: structured TurnAnalysis → code merges profile, code picks route)
+              ├─► discovery  (code: next missing detail, ≤3 questions, tour suggestions)
+              ├─► pricing    (code: PricingEngine → private enquiry + trace id)
+              ├─► answer     (content-grounded answers; full retrieval next)
+              ├─► handoff    (code: unknown tour → enquiry for sales)
+              └─► respond    (LLM writes words only → price guard → name scrub
+                              → price sentence from stored quote → UI catalog validation)
    │
-   ├── SQLite: enquiries (cost / price / GP% / trace id), visitors, drafts, approvals
-   └── Langfuse: one trace per traveller turn, PII redacted
+   ├── SQLite: enquiries (cost / price / GP% / staff reason / trace id)
+   └── Langfuse: agent → chains → generations (classify-turn, write-reply),
+                 tool (calculate-quote), guardrails (check-price-mentions, validate-ui-components);
+                 personal details masked at export
 ```
+
+Only `router` and `respond` call the LLM. Prices, routing decisions, permissions and UI validation
+are code. The responder LLM never receives a price, cost or staff reason, and any money amount it
+writes anyway is caught by the price guard and replaced.
 
 ## Repository layout
 

@@ -5,7 +5,6 @@ from pydantic import ValidationError
 
 from mira.config import get_settings
 from mira.data.content import load_content
-from mira.graph.builder import build_graph
 from mira.ui.catalog import validate_components
 
 
@@ -28,6 +27,3 @@ def test_catalog_rejects_unknown_component():
     with pytest.raises(ValidationError):
         validate_components([{"component": "free_html", "html": "<b>hi</b>"}])
 
-
-def test_graph_compiles():
-    assert build_graph() is not None

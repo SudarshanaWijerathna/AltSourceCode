@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     mira_margin_day_tour: float | None = Field(default=None, ge=0, lt=1)
     mira_margin_multi_day: float | None = Field(default=None, ge=0, lt=1)
 
+    mira_tracing: bool = True  # MIRA_TRACING=false disables Langfuse (unit tests)
+    mira_environment: str = "development"  # Langfuse environment: development | eval | production
+
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None
     langfuse_host: str = Field(

@@ -9,7 +9,8 @@
     "dev:backend": "node scripts/py.mjs -m uvicorn mira.main:app --reload --port 8000",
     "dev:frontend": "npm --prefix frontend run dev",
     "test": "node scripts/py.mjs -m pytest",
-    "eval": "node scripts/py.mjs -m mira.evals.run"
+    "eval": "node scripts/py.mjs -m mira.evals.run",
+    "chat": "node scripts/py.mjs -m mira.cli"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

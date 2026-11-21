@@ -21,8 +21,8 @@ out/
 next-env.d.ts
 
 # Runtime data
-data/*.db
-data/*.sqlite*
+**/*.db
+**/*.sqlite*
 evals/reports/*
 !evals/reports/.gitkeep
 
