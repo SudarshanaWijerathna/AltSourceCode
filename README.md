@@ -29,10 +29,12 @@ npm start                   # one command: installs everything, starts API (:800
 ## Architecture
 
 ```
-Browser (Next.js + CopilotKit)          npm run chat (terminal)
-   │  POST /chat  (AG-UI bridge next)        │
-   ▼                                          ▼
-FastAPI ──► Mira.turn()  — one Langfuse trace per turn, session = conversation
+Browser: Next.js + CopilotKit v2 (CopilotChat + useRenderTool per catalog component)
+   │  /api/copilotkit  (Copilot Runtime, TypeScript, open-source mode)
+   │  └─ HttpAgent ──► POST /agent   AG-UI SSE: text message + one tool call per component
+   │                                 ("show_tour_card", ...), validated against the catalog
+   ▼                                                         npm run chat (terminal) ─┐
+FastAPI ──► Mira.turn()  — one Langfuse trace per turn, session = conversation ◄───────┘
               │
               ▼  LangGraph (typed MiraState, checkpointed per session)
             router  (LLM: structured TurnAnalysis → code merges profile, code picks route)
@@ -105,6 +107,32 @@ Anything it cannot price returns a status and a staff-only reason — never a nu
 
 Margins come from the workbook; `MIRA_MARGIN_DAY_TOUR` / `MIRA_MARGIN_MULTI_DAY` override them
 without touching the workbook.
+
+## Generative UI
+
+Mira's backend chooses components from a fixed catalog (`backend/mira/ui/catalog.py`):
+`traveller_picker`, `tour_card`, `itinerary_day`, `price_breakdown`, `booking_form`,
+`specialist_handoff`, `source_list`. The graph builds them from code (a price card only from a
+stored quote; itinerary days only from the tour page) and validates them twice before the browser:
+in the `respond` node and again in the AG-UI endpoint (`mira/agui.py`) just before encoding.
+
+Over AG-UI each component is a **backend tool call** `show_<component>` whose arguments are the
+payload. The frontend renders them with CopilotKit's `useRenderTool` (tool-call rendering,
+`frontend/components/MiraRenderers.tsx`) after a third check against Zod mirrors of the catalog
+(`frontend/lib/catalog.ts`); a wildcard renderer draws nothing for anything else. No component
+executes code in the browser except the traveller picker / "Price this tour" buttons (they send a
+message as the traveller) and the booking form.
+
+- **Brand:** `frontend/scripts/brand-css.mjs` generates CSS variables from
+  `brand/brand_pack.json` before every dev/build; one accent colour per card, cards ≤ 320 px,
+  Inter, transitions < 200 ms, no scroll animation.
+- **Mobile and desktop:** checked in headless Edge at 1280×900 and 390×844 (no horizontal overflow).
+- **Mock booking/payment:** `POST /booking` charges the stored quote's deposit (the browser never
+  sends a price). "Test mode" lets the demo pick *card declined* or *booking system down*; both give
+  a friendly message and a way forward, never an error page. Contact details are stored only with
+  the private enquiry and never traced.
+- The CopilotKit AG-UI inspector is off unless `NEXT_PUBLIC_COPILOTKIT_INSPECTOR=true`; CopilotKit
+  runtime telemetry is off unless `COPILOTKIT_TELEMETRY_DISABLED=false`.
 
 ## Answering from content
 

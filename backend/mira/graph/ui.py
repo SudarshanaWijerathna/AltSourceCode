@@ -32,6 +32,13 @@ def price_breakdown(q: TravellerQuote, enquiry_id: str) -> dict:
     }
 
 
+def itinerary_days(t: TourInfo) -> list[dict]:
+    return [
+        {"component": "itinerary_day", "day": n, "title": title, "description": text, "source_path": t.source_path}
+        for n, title, text in t.days
+    ]
+
+
 def booking_form(enquiry_id: str) -> dict:
     return {"component": "booking_form", "quote_id": enquiry_id}
 

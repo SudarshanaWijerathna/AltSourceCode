@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS enquiries (
 );
 CREATE INDEX IF NOT EXISTS enquiries_session ON enquiries(session_id);
 """
+_ADDED_COLUMNS = ("contact_name", "contact_email", "contact_phone", "booking_ref")
 
 
 def _db_path(db_url: str) -> Path:
@@ -58,6 +59,27 @@ class EnquiryStore:
         self._lock = Lock()
         with self._lock:
             self._conn.executescript(_SCHEMA)
+            have = {r[1] for r in self._conn.execute("PRAGMA table_info(enquiries)")}
+            for column in _ADDED_COLUMNS:
+                if column not in have:  # databases created before these columns existed
+                    self._conn.execute(f"ALTER TABLE enquiries ADD COLUMN {column} TEXT")
+            self._conn.commit()
+
+    def _update(self, enquiry_id: str, **fields) -> None:
+        sets = ", ".join(f"{k} = ?" for k in fields)
+        with self._lock:
+            self._conn.execute(f"UPDATE enquiries SET {sets} WHERE id = ?", (*fields.values(), enquiry_id))
+            self._conn.commit()
+
+    def save_contact(self, enquiry_id: str, name: str, email: str, phone: str | None) -> None:
+        """Personal details live only here (never in traces or eval reports)."""
+        self._update(enquiry_id, contact_name=name, contact_email=email, contact_phone=phone)
+
+    def confirm_booking(self, enquiry_id: str, booking_ref: str) -> None:
+        self._update(enquiry_id, booking_ref=booking_ref, follow_up_status="booked")
+
+    def set_follow_up(self, enquiry_id: str, status: str) -> None:
+        self._update(enquiry_id, follow_up_status=status)
 
     def save_quote(self, quote: StaffQuote, session_id: str, trace_id: str | None) -> str:
         enquiry_id = f"ENQ-{uuid.uuid4().hex[:8].upper()}"

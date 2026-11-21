@@ -31,3 +31,6 @@ evals/reports/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Generated from the brand pack
+frontend/app/brand.css

@@ -1,7 +1,9 @@
 """FastAPI entrypoint.
 
-POST /chat is a plain JSON endpoint used by the CLI-free smoke tests and, until the AG-UI
-bridge is added, by the frontend. Responses never contain staff-only fields.
+- POST /agent    AG-UI endpoint used by CopilotKit (generative UI, mira/agui.py)
+- POST /chat     plain JSON turn (CLI-free smoke tests); same agent, same tracing
+- POST /booking  mock booking + payment from the booking form (mira/booking.py)
+Responses never contain staff-only fields.
 """
 
 from __future__ import annotations
@@ -13,15 +15,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from mira.agui import router as agui_router
+from mira.booking import BookingRequest, BookingResult, book
 from mira.config import get_settings
 
-app = FastAPI(title="Mira API", version="0.1.0")
+app = FastAPI(title="Mira API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(agui_router)
 
 
 @lru_cache
@@ -61,4 +66,6 @@ def chat(body: ChatIn) -> ChatOut:
     )
 
 
-# TODO: AG-UI / CopilotKit bridge at /agent; staff routes behind role checks.
+@app.post("/booking", response_model=BookingResult)
+def booking(body: BookingRequest) -> BookingResult:
+    return book(body, get_mira().deps.store)

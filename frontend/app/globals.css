@@ -1,28 +1,99 @@
-/* Tokens mirror docs/ceylon-compass-dataset/brand/brand_pack.json */
-:root {
-  --black: #111111;
-  --white: #ffffff;
-  --orange: #f26b1d;
-  --teal: #14837b;
-  --leaf: #4ca64c;
-  --sun: #f5b700;
-  --sky: #3a8dde;
-  --coral: #e5533d;
-  --surface: #ffffff;
-  --text: #111111;
-  --muted: #5f5f5f;
-  --border: #e6e6e6;
-
-  --font: Inter, Helvetica, Arial, sans-serif;
-  --fs-xs: 12px; --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 28px; --fs-xxl: 36px;
-  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
-  --r-card: 12px; --r-button: 999px; --r-input: 8px;
-  --card-max: 320px;
-  --t-fast: 150ms; /* brand rule: transitions under 200 ms, no scroll/parallax animation */
-}
+/* Layout and components. All colours, type, spacing and radii come from brand.css
+   (generated from the brand pack). Brand rules: one accent per card, cards max 320px,
+   no scroll-triggered animation, transitions under 200 ms. */
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--surface); color: var(--text); font-family: var(--font); font-size: var(--fs-md); }
-.shell { max-width: 960px; margin: 0 auto; padding: var(--sp-5) var(--sp-4); }
-.muted { color: var(--muted); }
-h1 { font-size: var(--fs-xl); font-weight: 700; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--brand-surface);
+  color: var(--brand-text);
+  font-family: var(--font-inter), var(--font);
+  font-size: var(--fs-md);
+}
+
+.shell { display: flex; flex-direction: column; height: 100dvh; }
+
+.topbar {
+  display: flex; align-items: baseline; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--brand-border);
+}
+.topbar__mark { color: var(--brand-orange); font-size: var(--fs-lg); }
+.topbar__name { font-weight: var(--fw-bold); font-size: var(--fs-lg); }
+.topbar__tag { color: var(--brand-muted); font-size: var(--fs-sm); }
+@media (max-width: 520px) { .topbar__tag { display: none; } }
+
+.chat { flex: 1; min-height: 0; width: 100%; max-width: 860px; margin: 0 auto; }
+.chat > * { height: 100%; }
+.chat, .chat * { font-family: var(--font-inter), var(--font); }
+
+/* --- catalog cards ------------------------------------------------------- */
+.mira-card {
+  --accent: var(--brand-orange);
+  width: 100%;
+  max-width: var(--card-max);
+  margin: var(--sp-2) 0;
+  padding: var(--sp-4);
+  background: var(--brand-white);
+  border: 1px solid var(--brand-border);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--r-card);
+  color: var(--brand-text);
+}
+.mira-card--loading { min-height: 96px; background: var(--brand-border); opacity: .5; }
+.mira-card__label {
+  margin: 0 0 var(--sp-1);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.mira-card__title { margin: 0 0 var(--sp-2); font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: 1.25; }
+.mira-card__body { margin: 0 0 var(--sp-2); font-size: var(--fs-sm); line-height: 1.5; }
+.mira-card__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-top: var(--sp-3); }
+.mira-source { color: var(--brand-muted); font-size: var(--fs-xs); }
+.mira-list { margin: 0; padding-left: var(--sp-4); font-size: var(--fs-sm); line-height: 1.5; }
+
+.mira-price { margin: 0 0 var(--sp-2); font-size: var(--fs-xl); font-weight: var(--fw-bold); }
+.mira-rows { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); }
+.mira-rows > div { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-1) 0; border-top: 1px solid var(--brand-border); }
+.mira-rows dt { color: var(--brand-muted); }
+.mira-rows dd { margin: 0; font-weight: var(--fw-semibold); }
+
+.mira-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.mira-chip, .mira-button {
+  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-semibold);
+  min-height: 40px; padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-button); cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+.mira-chip { background: var(--brand-white); color: var(--accent); border: 1px solid var(--accent); }
+.mira-chip:hover:not(:disabled) { background: var(--accent); color: var(--brand-white); }
+.mira-button { background: var(--accent); color: var(--brand-white); border: 1px solid var(--accent); }
+.mira-button--ghost { background: var(--brand-white); color: var(--accent); }
+.mira-button--ghost:hover:not(:disabled) { background: var(--accent); color: var(--brand-white); }
+.mira-chip:disabled, .mira-button:disabled { opacity: .5; cursor: default; }
+.mira-chip:focus-visible, .mira-button:focus-visible, .mira-form input:focus-visible, .mira-form select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.mira-form { display: grid; gap: var(--sp-3); }
+.mira-form label { display: grid; gap: var(--sp-1); font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--brand-muted); }
+.mira-form input, .mira-form select {
+  font: inherit; font-size: var(--fs-md); color: var(--brand-text);
+  min-height: 40px; padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--brand-border); border-radius: var(--r-input); background: var(--brand-white);
+}
+
+@media (max-width: 520px) {
+  .mira-card { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* staff page */
+.page { max-width: 960px; margin: 0 auto; padding: var(--sp-5) var(--sp-4); }
+.muted { color: var(--brand-muted); }
