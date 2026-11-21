@@ -26,7 +26,7 @@ def test_suite_size_and_coverage(cases):
     assert sum(1 for c in cases.values() if len(c.turns) > 1) >= 5
     assert sum(1 for c in cases.values() if c.source == "seed") == 17
     reqs = {r for c in cases.values() for r in c.requirements}
-    assert {"R1", "R3", "R4", "R5", "R6", "R7", "SAFETY", "OFF_TOPIC"} <= reqs
+    assert {"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "SAFETY", "OFF_TOPIC"} <= reqs
 
 
 def test_expected_quotes_resolve_through_pricing_function(cases):

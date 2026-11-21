@@ -81,6 +81,12 @@ class EnquiryStore:
     def set_follow_up(self, enquiry_id: str, status: str) -> None:
         self._update(enquiry_id, follow_up_status=status)
 
+    def update_staff_fields(self, enquiry_id: str, notes: str | None, follow_up_status: str | None) -> dict | None:
+        fields = {k: v for k, v in (("notes", notes), ("follow_up_status", follow_up_status)) if v is not None}
+        if fields:
+            self._update(enquiry_id, **fields)
+        return self.get(enquiry_id)
+
     def save_quote(self, quote: StaffQuote, session_id: str, trace_id: str | None) -> str:
         enquiry_id = f"ENQ-{uuid.uuid4().hex[:8].upper()}"
         row = (

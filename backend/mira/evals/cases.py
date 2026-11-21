@@ -27,11 +27,13 @@ SEED_REQUIREMENTS = {
 
 REQUIREMENT_NAMES = {
     "R1": "Discover the trip",
+    "R2": "Remember returning visitors",
     "R3": "Generate the interface",
     "R4": "Answer from content only",
     "R5": "Quote correct prices",
     "R6": "Handle missing or expired rates",
     "R7": "Save private enquiries",
+    "R8": "Approve AI-written content",
     "SAFETY": "Prompt injection & manipulation",
     "OFF_TOPIC": "Off-topic requests",
 }
@@ -55,6 +57,7 @@ class Case:
     checks: dict = field(default_factory=dict)
     note: str = ""
     quotes: list[ExpectedQuote] = field(default_factory=list)   # resolved expected quotes
+    sessions: list[list[str]] | None = None   # several sessions by the same visitor (Req 2)
 
     @property
     def behaviour(self) -> str | None:
@@ -91,10 +94,12 @@ def load_cases() -> list[Case]:
         ))
     for path in sorted((REPO_ROOT / "evals" / "cases").glob("*.jsonl")):
         for raw in _read_jsonl(path):
+            sessions = raw.get("sessions")
             cases.append(Case(
                 id=raw["id"], source="mira", category=raw["category"], requirements=raw["requirements"],
-                turns=raw["turns"], expected=raw["expected"], checks=raw.get("checks", {}),
-                note=raw.get("note", ""),
+                turns=[t for s in sessions for t in s] if sessions else raw["turns"],
+                expected=raw["expected"], checks=raw.get("checks", {}), note=raw.get("note", ""),
+                sessions=sessions,
             ))
     ids = [c.id for c in cases]
     if len(ids) != len(set(ids)):

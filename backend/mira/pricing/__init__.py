@@ -4,7 +4,7 @@ from fractions import Fraction
 from functools import lru_cache
 
 from mira.config import Settings, get_settings
-from mira.data.content import load_content
+from mira.data.content import load_all_content
 from mira.data.rates import load_ratebook
 from mira.pricing.engine import (
     MarginOverrides,
@@ -18,7 +18,7 @@ def build_engine(settings: Settings) -> PricingEngine:
     rates = load_ratebook(settings.rate_workbook)
     content = {
         doc.id: TourContentInfo(status=doc.status, nights=nights_from_duration(doc.meta.get("duration")))
-        for doc in load_content(settings.content_dir)
+        for doc in load_all_content(settings)
         if doc.type == "tour"
     }
     margins = MarginOverrides(

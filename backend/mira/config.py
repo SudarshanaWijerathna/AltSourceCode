@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     mira_margin_day_tour: float | None = Field(default=None, ge=0, lt=1)
     mira_margin_multi_day: float | None = Field(default=None, ge=0, lt=1)
 
+    # Staff accounts "name:role:key,..." (roles: staff, approver). Demo-only defaults for local use.
+    mira_staff_users: str = "sam:staff:demo-staff-key,ana:approver:demo-approver-key"
+    # Approved AI-written pages are written here (runtime data; the dataset is never modified).
+    mira_published_dir: Path = REPO_ROOT / "data" / "published_content"
+
     mira_tracing: bool = True  # MIRA_TRACING=false disables Langfuse (unit tests)
     mira_environment: str = "development"  # Langfuse environment: development | eval | production
 

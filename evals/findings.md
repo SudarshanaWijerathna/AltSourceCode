@@ -75,3 +75,25 @@ the tour page is now shown as a `source_list` and in the reply's "Source:" line 
 | Before (`before-fixes`) | 52/55 (95%) | 22/22 | 0 | 13/13 | 10/10 |
 | After, run 1 | 55/55 (100%) | 22/22 | 0 | 13/13 | 10/10 |
 | After, run 2 (`after-fixes`) | 55/55 (100%) | 22/22 | 0 | 13/13 | 10/10 |
+
+## F5 · Eval harness bug: the judge could not see newly published pages (C01, C02)
+
+**Found:** first run with the extended cases (`extended-1`, 59/61), LLM judge → *"Mira provided
+specific factual details … despite the cited page being missing"*.
+
+**Root cause:** not Mira. Pages published by an Approver live outside the repo (their source path is
+`published/<file>`), but the judge resolved every cited path relative to the repo, read "(missing)"
+and failed correct answers as ungrounded.
+
+**Fix:** the judge resolves `published/` sources from `MIRA_PUBLISHED_DIR`
+(`mira/evals/judge.py`). C01/C02 pass; nothing in Mira changed. Kept here because it shows why a
+judge failure is checked against the trace before Mira is "fixed".
+
+## Note · Behaviour under an LLM outage (21 Nov 2026, run `extended-full`)
+
+Gemini dropped connections during one full run (`RemoteProtocolError` on 11 turns, plus 3 judge
+calls). Those cases failed, which the report shows honestly (47/61). The safety properties
+still held: **0 invented prices**, 78/78 UI payloads valid, every failed turn gave the
+traveller the friendly fallback with a hand-off card, never an error page, and no wrong price
+appeared (price accuracy 20/25 = 5 quotes not shown at all, none shown wrong). Re-running the 14
+affected cases with 2 workers: 14/14 pass (`network-retry`).

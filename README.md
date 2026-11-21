@@ -134,6 +134,36 @@ message as the traveller) and the booking form.
 - The CopilotKit AG-UI inspector is off unless `NEXT_PUBLIC_COPILOTKIT_INSPECTOR=true`; CopilotKit
   runtime telemetry is off unless `COPILOTKIT_TELEMETRY_DISABLED=false`.
 
+## Staff, returning visitors and content approval
+
+Staff sign in on **`/staff`** with a staff key (`MIRA_STAFF_USERS`, format `name:role:key`; the
+defaults `demo-staff-key` / `demo-approver-key` are for local demos only). Roles are enforced in
+code by `mira/auth` (FastAPI dependencies: 401 without a key, 403 without the permission):
+
+| Permission | staff | approver |
+| --- | --- | --- |
+| View and edit enquiries (notes, follow-up status) | ✓ | ✓ |
+| Create AI-written drafts | ✓ | ✓ |
+| Publish or reject drafts | ✗ | ✓ |
+
+- **Private enquiries (Req 7).** Every quote attempt, flag, custom request and booking is an
+  enquiry with price, deposit, cost, GP%, cost lines, staff-only reason, contact details (if
+  booked), follow-up status, notes and a link to the Langfuse trace that produced it.
+- **Returning visitors (Req 2).** The browser keeps a random visitor id (no personal data) and sends
+  it in the AG-UI thread id (`v-<visitor>.<session>`). Mira remembers trip facts only (tour, dates,
+  travellers), never names or contact details. A returning visitor sees a *Welcome back* card with
+  the last quote **re-priced today**: it is shown only if the price is unchanged, otherwise Mira
+  offers to re-check. A new session starts from the remembered trip, so Mira doesn't ask again
+  ("Can you add our son? He is 8." is quoted straight away). *Forget me* drops the id.
+- **AI-written content (Req 8).** A staff command such as *"Add a 5-day Hill Country tour using the
+  Ella photos"* runs the content agent (`mira/content_admin`): it retrieves published pages, the LLM
+  drafts a tour as structured data, and code removes prices, unknown destinations and hotels not in
+  our pages, and notes gaps for the approver (the dataset has no photos, so it says so instead of
+  inventing any). The draft is stored in the database only. Mira can't see it. When an Approver
+  publishes it, a normal page is written to `data/published_content/` (never into the dataset) and
+  Mira's catalog and search index are refreshed, so Mira can answer about it immediately. A new tour
+  has no rates, so price requests go to a specialist.
+
 ## Answering from content
 
 `mira/retrieval` indexes **published** pages only (the draft T15 never reaches Mira), split at
@@ -159,9 +189,12 @@ in the trace and needs no embedding service.
 Committed snapshots are in [`evals/snapshots/`](evals/snapshots/); problems found and fixed are in
 [`evals/findings.md`](evals/findings.md).
 
-- **Cases:** 55 = the dataset's 17 seed cases (read in place, unchanged) + 38 of ours
-  (`evals/cases/build_cases.py` → `mira_cases.jsonl`), 10 multi-turn, covering R1, R3–R7,
-  prompt injection and off-topic requests.
+- **Cases:** 61 = the dataset's 17 seed cases (read in place, unchanged) + 44 of ours
+  (`evals/cases/build_cases.py` → `mira_cases.jsonl`), 13 multi-turn or multi-session, covering
+  R1–R8, prompt injection and off-topic requests. R2 cases run two sessions for the same visitor;
+  R8 cases run against fixtures (`evals/fixtures/content.json`): one page published through the
+  real publish path into a fresh directory, one left as an unapproved draft whose words must never
+  appear in a reply.
 - **Code checks** wherever there is an exact answer, on every turn: price and deposit equal the
   pricing function; no money amount in a reply that isn't the stored quote or a policy fee; every UI
   payload validates against the catalog and matches the stored quote; no costs, margins or internal
@@ -174,8 +207,10 @@ Committed snapshots are in [`evals/snapshots/`](evals/snapshots/); problems foun
   environment, tagged `case:<id>`; the case verdict is attached as an `eval-case-pass` score, and the
   report links the trace of every failing turn.
 
-Latest result (2026-11-21, `gemini-3.8-flash`, two consecutive runs): **55/55 cases**, price accuracy
-22/22, 0 invented prices, missing/expired handling 13/13, judge agreement 10/10.
+Latest result (2026-11-21, `gemini-3.8-flash`, [`evals/snapshots/2026-11-21-extended-final.md`](evals/snapshots/2026-11-21-extended-final.md)):
+**61/61 cases**, price accuracy 25/25, 0 invented prices, missing/expired handling 14/14, judge
+agreement 10/10. One earlier run during a Gemini outage scored 47/61 (all failures were dropped
+connections; still 0 invented prices, see `evals/findings.md`).
 
 ## Dataset notes
 

@@ -1,0 +1,36 @@
+{
+  "_about": "Eval fixtures for Req 8. 'published' goes through the real publish() path into a temporary published-content dir before the run; 'draft' is stored as an unapproved draft and must never reach Mira.",
+  "published": {
+    "title": "Tea Country Rail Escape",
+    "category": "Short stay",
+    "duration_days": 3,
+    "start": "Kandy",
+    "destinations": ["nuwara-eliya", "ella"],
+    "summary": "Three unhurried days in the hill country by train, from Kandy through the tea estates to Nuwara Eliya and Ella.",
+    "days": [
+      {"title": "Kandy to Nuwara Eliya by train", "description": "Take the morning hill-country train through the tea estates to Nanu Oya, then explore Nuwara Eliya."},
+      {"title": "Nuwara Eliya to Ella", "description": "Continue on the scenic railway to Ella, a relaxed hill town."},
+      {"title": "Ella", "description": "Walk to Little Adam's Peak and see the Nine Arches Bridge before drop-off."}
+    ],
+    "inclusions": ["English-speaking guide", "Train tickets (second class)", "Air-conditioned vehicle"],
+    "hotels": [],
+    "citations": [1],
+    "notes_for_staff": "Eval fixture."
+  },
+  "draft": {
+    "title": "Knuckles Range Trek",
+    "category": "Special interest",
+    "duration_days": 2,
+    "start": "Kandy",
+    "destinations": ["kandy"],
+    "summary": "A two-day trek through the Knuckles Range cloud forest, overnight in Meemure village.",
+    "days": [
+      {"title": "Kandy to Meemure", "description": "Drive to Corbet's Gap and hike down into Meemure village."},
+      {"title": "Meemure to Kandy", "description": "Morning walk to the Lakegala viewpoint, then return to Kandy."}
+    ],
+    "inclusions": ["Trekking guide"],
+    "hotels": [],
+    "citations": [],
+    "notes_for_staff": "Eval fixture: unapproved draft."
+  }
+}

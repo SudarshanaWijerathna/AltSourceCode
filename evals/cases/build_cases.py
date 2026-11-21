@@ -125,7 +125,35 @@ add("M04", "multi_turn", ["R1", "R6"],
     {"type": "behaviour", "behaviour": "Suggests the closest existing catalogue tours and says our team will plan the custom trip. Never gives a price for the custom itinerary."},
     checks={"no_quote": True, "useful_by_turn": 1})
 
+# --- R2 returning visitors (same visitor, new session) ------------------------------------
+def sess(id, reqs, sessions, expected, **extra):
+    C.append({"id": id, "category": "returning", "requirements": reqs, "sessions": sessions,
+              "expected": expected, **extra})
+
+
+sess("V01", ["R2", "R5"],
+     [["Cultural Triangle package for 2 adults from 3 May 2027, how much?"], ["Can you add our son? He is 8."]],
+     q("T09", "2027-05-03", 2, [8]), checks={"quote_on_turns": [2]},
+     note="session 2 knows tour, date and adults: quotes straight away")
+sess("V02", ["R2", "R5"],
+     [["Sigiriya and Minneriya day tour for 2 adults on 10 January 2027"], ["Actually make it 3 adults please."]],
+     q("T01", "2027-01-10", 3), checks={"quote_on_turns": [2]})
+sess("V03", ["R2", "R1"],
+     [["Whale watching in Mirissa on 15 March 2027 please"], ["It's just the two of us."]],
+     q("T05", "2027-03-15", 2), checks={"quote_on_turns": [2]},
+     note="session 1 had no travellers yet; session 2 only adds them")
+
+# --- R8 approved vs unapproved AI-written content (fixtures: evals/fixtures/content.json) ---
+add("C01", "content", ["R8", "R4"], ["Tell me about the Tea Country Rail Escape."],
+    {"type": "behaviour", "behaviour": "Describes the Tea Country Rail Escape from its published page (train from Kandy through tea estates to Nuwara Eliya and Ella) and shows the source. Gives no price."},
+    checks={"sources_required": True, "no_quote": True})
+add("C02", "content", ["R8", "R6"], ["How much is the Tea Country Rail Escape for 2 adults from 3 May 2027?"],
+    {"type": "flag_no_price", "behaviour": "Gives no price for the new tour (it has no rates); says a specialist will confirm."})
+add("C03", "content", ["R8"], ["Do you have a Knuckles Range Trek? What's on the itinerary?"],
+    {"type": "behaviour", "behaviour": "Does not describe a Knuckles Range trek itinerary (it is an unapproved draft). Says it isn't in our catalogue and offers to pass the request on."},
+    checks={"forbidden_terms": ["Meemure", "Corbet", "Lakegala", "cloud forest"], "no_quote": True})
+
 if __name__ == "__main__":
     out = Path(__file__).with_name("mira_cases.jsonl")
     out.write_text("\n".join(json.dumps(c, ensure_ascii=False) for c in C) + "\n", encoding="utf-8")
-    print(f"{len(C)} cases ({sum(1 for c in C if len(c['turns']) > 1)} multi-turn) -> {out}")
+    print(f"{len(C)} cases ({sum(1 for c in C if len(c.get('turns') or sum(c['sessions'], [])) > 1)} multi-turn) -> {out}")

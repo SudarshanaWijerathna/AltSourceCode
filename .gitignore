@@ -34,3 +34,6 @@ Thumbs.db
 
 # Generated from the brand pack
 frontend/app/brand.css
+
+# Pages published by an Approver at runtime (not part of the dataset)
+data/published_content/

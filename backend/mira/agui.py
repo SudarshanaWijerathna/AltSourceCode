@@ -35,6 +35,7 @@ from fastapi.responses import StreamingResponse
 from starlette.concurrency import run_in_threadpool
 
 from mira.ui.catalog import validate_each
+from mira.visitors import visitor_from_thread
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -103,7 +104,8 @@ async def agent_endpoint(run: RunAgentInput, request: Request) -> StreamingRespo
             reply, ui = ("Hello, I'm Mira from Ceylon Compass Holidays. Are you after a day tour or "
                          "a longer trip?"), []
         else:
-            result = await run_in_threadpool(get_mira().turn, run.thread_id, message, ["web"])
+            visitor = visitor_from_thread(run.thread_id)
+            result = await run_in_threadpool(get_mira().turn, run.thread_id, message, ["web"], visitor)
             reply, ui = result.reply, result.ui
         for event in turn_events(run, reply, ui):
             yield encoder.encode(event)

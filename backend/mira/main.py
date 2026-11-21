@@ -3,6 +3,7 @@
 - POST /agent    AG-UI endpoint used by CopilotKit (generative UI, mira/agui.py)
 - POST /chat     plain JSON turn (CLI-free smoke tests); same agent, same tracing
 - POST /booking  mock booking + payment from the booking form (mira/booking.py)
+- /staff/*, /visitor/*  staff page and returning visitors (mira/staff_api.py)
 Responses never contain staff-only fields.
 """
 
@@ -18,15 +19,17 @@ from pydantic import BaseModel, Field
 from mira.agui import router as agui_router
 from mira.booking import BookingRequest, BookingResult, book
 from mira.config import get_settings
+from mira.staff_api import router as staff_router
 
 app = FastAPI(title="Mira API", version="0.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["*"],
+    allow_methods=["*"],  # browser calls go through the Next.js proxy; CORS only for local tools
     allow_headers=["*"],
 )
 app.include_router(agui_router)
+app.include_router(staff_router)
 
 
 @lru_cache

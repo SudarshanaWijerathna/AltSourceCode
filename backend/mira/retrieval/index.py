@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 from mira.config import get_settings
-from mira.data.content import ContentDoc, load_content
+from mira.data.content import ContentDoc, load_all_content, source_path
 from mira.retrieval.rules import SUPERSESSIONS
 
 _MONEY = re.compile(
@@ -92,7 +92,7 @@ def _apply_supersessions(doc: ContentDoc, heading: str, text: str) -> tuple[str 
 
 
 def chunk_doc(doc: ContentDoc, root) -> list[Chunk]:
-    source = doc.path.relative_to(root).as_posix()
+    source = source_path(doc.path)
     updated = str(doc.meta.get("last_updated", ""))
     sections: list[tuple[str, list[str]]] = [("", [])]
     for line in doc.body.splitlines():
@@ -202,7 +202,7 @@ def get_index() -> ContentIndex:
     s = get_settings()
     root = s.dataset_dir.parents[1]
     chunks: list[Chunk] = []
-    for doc in load_content(s.content_dir):
+    for doc in load_all_content(s):
         if doc.status == "published":
             chunks += chunk_doc(doc, root)
     return ContentIndex(chunks)

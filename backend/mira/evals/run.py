@@ -12,6 +12,8 @@ import os
 # Isolate eval runs before any mira settings are read.
 os.environ.setdefault("MIRA_ENVIRONMENT", "eval")
 os.environ.setdefault("MIRA_DB_URL", "sqlite:///./data/eval.db")
+# Fresh published-content dir per run, holding only the eval fixture page (see prepare_content).
+os.environ.setdefault("MIRA_PUBLISHED_DIR", __import__("tempfile").mkdtemp(prefix="mira-eval-published-"))
 
 import argparse
 import json
@@ -39,12 +41,31 @@ def git_sha() -> str:
         return "unknown"
 
 
+def prepare_content() -> dict:
+    """Req 8 fixtures: publish one AI-style page through the real publish() path; leave one as a draft."""
+    from mira.content_admin.drafts import DraftStore, DraftTour, publish, render_markdown
+
+    s = get_settings()
+    fixtures = json.loads((REPO_ROOT / "evals" / "fixtures" / "content.json").read_text(encoding="utf-8"))
+    store = DraftStore(s.mira_db_url)
+    out = {}
+    for key, tour_id in (("published", "T90"), ("draft", "T91")):
+        d = DraftTour.model_validate(fixtures[key])
+        row = store.create(tour_id, f"eval fixture: {d.title}", d, render_markdown(tour_id, d, "draft", s.mira_today),
+                           [], "eval-staff", None)
+        out[key] = row["id"]
+    publish(store, out["published"], "eval-approver", s.mira_published_dir, s.mira_today)
+    return out
+
+
 def run_case(mira, judge: Judge | None, case: Case, run_id: str) -> dict:
-    session = f"eval-{run_id}-{case.id}"
     transcript: list[dict] = []
     started = time.time()
-    for message in case.turns:
-        r = mira.turn(session, message, tags=["eval", f"case:{case.id}", f"run:{run_id}"])
+    visitor = f"v-eval{abs(hash((run_id, case.id))) % 10**10:010d}" if case.sessions else None
+    plan = ([(f"{visitor}.s{n}", m) for n, sess in enumerate(case.sessions, start=1) for m in sess]
+            if case.sessions else [(f"eval-{run_id}-{case.id}", m) for m in case.turns])
+    for session, message in plan:
+        r = mira.turn(session, message, tags=["eval", f"case:{case.id}", f"run:{run_id}"], visitor_id=visitor)
         row = mira.deps.store.get(r.enquiry_id) if r.enquiry_id else None
         transcript.append({
             "user": message, "reply": r.reply, "ui": r.ui, "quote": r.quote, "enquiry_id": r.enquiry_id,
@@ -117,6 +138,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from mira.agent import Mira
 
+    fixtures = prepare_content()
+    print(f"Content fixtures: published {fixtures['published']}, unapproved draft {fixtures['draft']}", flush=True)
     cases = load_cases()
     if args.only:
         wanted = {x.strip() for x in args.only.split(",")}

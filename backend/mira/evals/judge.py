@@ -55,7 +55,10 @@ class Transcript:
 
 
 def _page_text(rel_path: str, limit: int = 2500) -> str:
-    path = REPO_ROOT / rel_path
+    if rel_path.startswith("published/"):  # approved pages outside the repo (see data.content.source_path)
+        path = get_settings().mira_published_dir / rel_path.removeprefix("published/")
+    else:
+        path = REPO_ROOT / rel_path
     if not path.exists():
         return "(missing)"
     # Keep front matter (durations, hotels live there) but drop teaser prices.

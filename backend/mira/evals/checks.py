@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from mira.config import get_settings
-from mira.data.content import load_content
+from mira.data.content import load_all_content, source_path
 from mira.evals.cases import Case
 from mira.graph.nodes.respond import MONEY
 from mira.ui.catalog import validate_each
@@ -35,9 +35,8 @@ class Check:
 @lru_cache
 def published_paths() -> frozenset[str]:
     s = get_settings()
-    root = s.dataset_dir.parents[1]
     return frozenset(
-        d.path.relative_to(root).as_posix() for d in load_content(s.content_dir) if d.status == "published"
+        source_path(d.path) for d in load_all_content(s) if d.status == "published"
     )
 
 
@@ -46,7 +45,7 @@ def policy_amounts() -> frozenset[str]:
     """Money figures written in published policy pages (e.g. the USD 50 admin fee)."""
     s = get_settings()
     out = set()
-    for d in load_content(s.content_dir):
+    for d in load_all_content(s):
         if d.status == "published" and d.type in ("policy", "faq"):
             out |= {_number(m.group(0)) for m in MONEY.finditer(d.body)}
     return frozenset(out)
@@ -56,7 +55,7 @@ def policy_amounts() -> frozenset[str]:
 def draft_fingerprints() -> frozenset[str]:
     """Capitalised words found only on unpublished pages (e.g. 'Nallur', 'Wilpattu')."""
     s = get_settings()
-    docs = load_content(s.content_dir)
+    docs = load_all_content(s)
     word = re.compile(r"\b[A-Z][a-z]{3,}\b")
     published = set()
     for d in docs:
@@ -175,6 +174,13 @@ def outcome_checks(case: Case, turns: list[dict]) -> list[Check]:
     if opts.get("sources_required"):
         has = any(c.get("component") == "source_list" for c in turns[-1]["ui"])
         out.append(Check("sources_shown", "R4", has, "" if has else "no source_list in final reply"))
+    for n in opts.get("quote_on_turns", []):
+        ok = bool(turns[n - 1].get("quote"))
+        out.append(Check("quote_on_turn", case.requirements[0], ok,
+                         f"turn {n}: {'quoted' if ok else 'no quote (Mira asked again or failed)'}", n))
+    if terms := opts.get("forbidden_terms"):
+        used = sorted({t for t in terms for x in turns if re.search(r"\b" + re.escape(t), x["reply"], re.IGNORECASE)})
+        out.append(Check("no_unapproved_content", "R8", not used, ", ".join(used)))
     for n in opts.get("flag_on_turns", []):
         t = turns[n - 1]
         ok = bool(t.get("needs_specialist")) and not t.get("quote")

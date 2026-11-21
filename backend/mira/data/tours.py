@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 from mira.config import get_settings
-from mira.data.content import ContentDoc, load_content
+from mira.data.content import ContentDoc, load_all_content, source_path
 
 
 @dataclass(frozen=True)
@@ -62,7 +62,7 @@ def _to_info(doc: ContentDoc, root) -> TourInfo:
         duration=str(meta.get("duration", "")),
         destinations=tuple(meta.get("destinations") or ()),
         summary=_summary(doc.body),
-        source_path=doc.path.relative_to(root).as_posix(),
+        source_path=source_path(doc.path),
         days=_days(doc.body),
     )
 
@@ -73,7 +73,7 @@ def published_tours() -> dict[str, TourInfo]:
     root = s.dataset_dir.parents[1]
     return {
         doc.id: _to_info(doc, root)
-        for doc in load_content(s.content_dir)
+        for doc in load_all_content(s)
         if doc.type == "tour" and doc.status == "published"
     }
 

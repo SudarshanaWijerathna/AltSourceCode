@@ -45,7 +45,7 @@ class FakeMira:
     def __init__(self):
         self.calls = []
 
-    def turn(self, session_id, message, tags=None):
+    def turn(self, session_id, message, tags=None, visitor_id=None):
         self.calls.append((session_id, message))
         return TurnResult(reply="Here you go.", ui=[TOUR_CARD])
 
