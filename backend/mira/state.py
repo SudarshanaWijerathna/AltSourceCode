@@ -10,8 +10,7 @@ TravellerType = Literal["solo", "couple", "family", "group"]
 
 class Party(TypedDict, total=False):
     adults: int
-    child_ages: list[int]
-    single_rooms: int
+    child_ages: list[int]  # rooms are derived by the pricing engine
 
 
 class TripProfile(TypedDict, total=False):

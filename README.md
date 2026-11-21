@@ -75,8 +75,42 @@ scripts/               cross-platform setup/launch helpers
 - **Catalog validation on both ends.** Pydantic on the server, Zod on the client.
 - **Dataset is read-only.** All cleaning happens in loaders; the files in `docs/` are not edited.
 
+## Pricing
+
+`mira.pricing.engine.PricingEngine.quote()` implements the workbook's READ ME rules with exact
+fractions (no float rounding), returns a `StaffQuote` (cost lines, cost, margin, GP%, rates version)
+and exposes only `traveller_view()` (price, deposit, balance) to the traveller and the LLM.
+Anything it cannot price returns a status and a staff-only reason — never a number:
+
+| Status | When |
+| --- | --- |
+| `missing_rates` | A rate the price needs is not in the workbook (e.g. no single room at H04, no rates for T10/T16) |
+| `expired_rates` | Rates don't cover the travel dates (H07 ended Oct 2026; anything after 31 Oct 2027) |
+| `ambiguous_rates` | Two rate rows with different prices cover the same night (H03, Jan–Mar 2027) |
+| `not_available` | Draft page, ended offer, or tour page and rate sheet disagree on duration |
+| `refer_to_sales` | More than 20 travellers |
+| `invalid_request` | Start date in the past (not a staff flag — Mira asks for another date) |
+
+Margins come from the workbook; `MIRA_MARGIN_DAY_TOUR` / `MIRA_MARGIN_MULTI_DAY` override them
+without touching the workbook.
+
 ## Dataset notes
 
+Data issues the loader handles (all reported in `RateBook.warnings`):
+
+- Hotels `F8`/`F10`: H02 double rate stored as text `'LKR 28,000'` → parsed.
+- Hotels `D33`: H08 Peak start date stored as text `'15/12/2026'` → parsed as day/month/year.
+- H10 Cinnamon Wild Yala is contracted in **USD** (Notes column) → converted to LKR at the FX rate, not divided by it.
+- Tour id `T-13` → normalised to `T13` to match its tour page.
+- H04 has no single-room rate → solo travellers on T12 get a specialist hand-over (seed S04).
+- H07 rates end 31 Oct 2026 → T11 is flagged as expired (seed S05).
+- H03 has two overlapping Peak rows for Jan–Mar 2027 (25,000 vs 34,000, "Revised per supplier email?")
+  → **decision:** flag as ambiguous rather than pick one.
+- **Decision:** T06's page says "1 night / 2 days" but the rate sheet prices a 0-night day tour → not quoted.
+- **Decision:** T14 "Winter 2023/24 Early Bird" is an ended offer → not quoted (`pricing/rules.py`).
+- T15 is a draft marked "not launched yet" → never quoted.
+- Sample quote **Q-1043 is wrong**: it omits the children's extra beds (READ ME rule 4). Correct hotels
+  are LKR 210,000 and the price USD 2,965, which matches eval seed S03. Tests assert the corrected figure.
 - The dataset README says 15 seed eval cases; `eval_seed.jsonl` contains 17 (matching the brief).
 
 ## Known limitations

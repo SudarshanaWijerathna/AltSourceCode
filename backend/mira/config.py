@@ -12,7 +12,9 @@ DATASET_DIR = REPO_ROOT / "docs" / "ceylon-compass-dataset"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=REPO_ROOT / ".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=REPO_ROOT / ".env", extra="ignore", env_ignore_empty=True
+    )
 
     mira_today: date = date(2026, 11, 19)
     dataset_dir: Path = DATASET_DIR
@@ -24,6 +26,10 @@ class Settings(BaseSettings):
     )
     mira_model_large: str = "gemini-3.8-flash"
     mira_model_small: str = "gemini-3.5-flash-lite"
+
+    # Optional margin overrides (e.g. 0.32). Unset -> use the workbook's Settings tab.
+    mira_margin_day_tour: float | None = Field(default=None, ge=0, lt=1)
+    mira_margin_multi_day: float | None = Field(default=None, ge=0, lt=1)
 
     langfuse_public_key: str | None = None
     langfuse_secret_key: str | None = None

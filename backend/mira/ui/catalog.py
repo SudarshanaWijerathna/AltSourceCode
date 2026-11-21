@@ -1,6 +1,6 @@
 """Fixed generative-UI component catalog. Every payload is validated before reaching the browser."""
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
@@ -33,7 +33,8 @@ class PriceBreakdown(BaseModel):
     quote_id: str  # rendered from the stored quote, never from model text
     price_usd: float
     deposit_usd: float
-    lines: list[dict] = []
+    balance_usd: float = 0
+    balance_due: str | None = None  # ISO date
 
 
 class BookingForm(BaseModel):
@@ -47,7 +48,7 @@ class SpecialistHandoff(BaseModel):
 
 
 Component = Annotated[
-    Union[TravellerPicker, TourCard, ItineraryDay, PriceBreakdown, BookingForm, SpecialistHandoff],
+    TravellerPicker | TourCard | ItineraryDay | PriceBreakdown | BookingForm | SpecialistHandoff,
     Field(discriminator="component"),
 ]
 _adapter = TypeAdapter(list[Component])
