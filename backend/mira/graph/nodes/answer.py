@@ -100,10 +100,14 @@ def make(deps: Deps):
         if focus and focus in deps.tours:
             query = f"{query} {deps.tours[focus].title}"
 
-        ui = [tour_card(deps.tours[focus])] if focus in deps.tours else []
+        ui, shown = [], state.get("shown_tour")
+        if focus in deps.tours and focus != shown:
+            chosen = focus == p.get("tour_id")
+            ui.append(tour_card(deps.tours[focus], action=None if chosen else "choose"))
+            shown = focus if chosen else shown
         facts = grounded_answer(deps, state, retrieve(deps, query, focus))
         if facts is None:
-            return {"facts": {"kind": "no_content", "question": query}, "ui": ui}
-        return {"facts": facts, "ui": [*ui, source_list(facts["sources"])]}
+            return {"facts": {"kind": "no_content", "question": query}, "ui": ui, "shown_tour": shown}
+        return {"facts": facts, "ui": [*ui, source_list(facts["sources"])], "shown_tour": shown}
 
     return run

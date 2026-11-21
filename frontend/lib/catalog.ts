@@ -4,7 +4,17 @@ import { z } from "zod";
 
 export const TravellerPicker = z.object({
   prompt: z.string(),
-  options: z.array(z.enum(["solo", "couple", "family", "group"])).min(1),
+  final: z.boolean().default(false), // this answer completes the details for a price
+});
+export const DatePicker = z.object({
+  prompt: z.string(),
+  min_date: z.string(),
+  max_date: z.string(),
+  final: z.boolean().default(false),
+});
+export const ChildAgesPicker = z.object({
+  count: z.number().int().min(1).max(10),
+  final: z.boolean().default(false),
 });
 export const TourCard = z.object({
   tour_id: z.string(),
@@ -12,7 +22,7 @@ export const TourCard = z.object({
   duration: z.string(),
   summary: z.string(),
   source_path: z.string(),
-  priced: z.boolean().default(false), // the same reply already shows this tour's price
+  action: z.enum(["choose"]).nullable().default(null), // "choose": a suggestion; null: tour already chosen
 });
 export const ItineraryDay = z.object({
   day: z.number().int().min(1),
@@ -42,6 +52,8 @@ export const CATALOG = {
   show_booking_form: BookingForm,
   show_specialist_handoff: SpecialistHandoff,
   show_source_list: SourceList,
+  show_date_picker: DatePicker,
+  show_child_ages_picker: ChildAgesPicker,
 } as const;
 
 export type CatalogName = keyof typeof CATALOG;

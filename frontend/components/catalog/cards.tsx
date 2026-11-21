@@ -5,51 +5,141 @@ import { useState } from "react";
 import { type Props, shortSource, usd } from "@/lib/catalog";
 import { useSendMessage } from "@/lib/useSendMessage";
 
-/** Every card uses black text and one colour: the brand teal (headings, buttons, chips, focus). */
+/** Every card uses black text and one colour: the brand teal (headings, buttons, chips, focus).
+    The label ("Day 4", "Children's ages") sits above the card, not inside it. */
 function Card({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className={className ? `mira-card ${className}` : "mira-card"}>
+    <section className={className ? `mira-block ${className.replace("mira-card--", "mira-block--")}` : "mira-block"}
+             aria-label={label}>
       <p className="mira-card__label">{label}</p>
-      {children}
+      <div className={className ? `mira-card ${className}` : "mira-card"}>{children}</div>
     </section>
   );
 }
 
-const TRAVELLER_TEXT: Record<string, string> = {
-  solo: "Just me, travelling solo.",
-  couple: "We're a couple, two adults.",
-  family: "We're a family with children.",
-  group: "We're a group of friends.",
-};
+/* ---- Guided inputs: each collects one missing detail. Its button stays disabled until the detail
+   is given; it reads "Get my price" when this answer completes the details, otherwise "Continue".
+   After sending, the card locks so the same answer can't be sent twice. ---- */
 
-// The heading already asks the question (and Mira's reply above usually does too), so the payload's
-// `prompt` is not repeated in the card; it is kept for screen readers via aria-label.
-export function TravellerPicker({ prompt, options }: Props<"show_traveller_picker">) {
+const nextLabel = (final: boolean) => (final ? "Get my price" : "Continue");
+
+function useAnswer() {
   const { send, busy } = useSendMessage();
+  const [sent, setSent] = useState(false);
+  const answer = async (text: string) => {
+    if (sent) return;
+    setSent(true);
+    await send(text);
+  };
+  return { answer, locked: sent || busy, sent };
+}
+
+function Stepper({ label, value, min, max, onChange, disabled }: {
+  label: string; value: number; min: number; max: number; onChange: (v: number) => void; disabled: boolean;
+}) {
+  return (
+    <div className="mira-stepper">
+      <span className="mira-stepper__label">{label}</span>
+      <div className="mira-stepper__controls">
+        <button type="button" className="mira-stepper__btn" aria-label={`Fewer ${label.toLowerCase()}`}
+                disabled={disabled || value <= min} onClick={() => onChange(value - 1)}>−</button>
+        <span className="mira-stepper__value" aria-live="polite">{value}</span>
+        <button type="button" className="mira-stepper__btn" aria-label={`More ${label.toLowerCase()}`}
+                disabled={disabled || value >= max} onClick={() => onChange(value + 1)}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// The heading asks the question; the payload's `prompt` is kept for screen readers.
+export function TravellerPicker({ prompt, final }: Props<"show_traveller_picker">) {
+  const { answer, locked, sent } = useAnswer();
+  const [adults, setAdults] = useState(2);
+  const [children, setChildren] = useState(0);
+  const text = `${adults} adult${adults === 1 ? "" : "s"}` +
+    (children ? ` and ${children} child${children === 1 ? "" : "ren"} (under 12)` : "");
+  // Children still need their ages, so the details are not complete yet.
+  const completes = final && children === 0;
   return (
     <Card label="Who's travelling">
-      <div className="mira-chips" role="group" aria-label={prompt}>
-        {options.map((o) => (
-          <button key={o} className="mira-chip" disabled={busy} onClick={() => send(TRAVELLER_TEXT[o])}>
-            {o[0].toUpperCase() + o.slice(1)}
-          </button>
-        ))}
+      <div className="mira-form" role="group" aria-label={prompt}>
+        <Stepper label="Adults" value={adults} min={1} max={20} onChange={setAdults} disabled={locked} />
+        <Stepper label="Children (2–11)" value={children} min={0} max={10} onChange={setChildren} disabled={locked} />
+        <button className="mira-button" disabled={locked || adults < 1} onClick={() => answer(text)}>
+          {sent ? "Sent" : nextLabel(completes)}
+        </button>
       </div>
     </Card>
   );
 }
 
-export function TourCard({ title, duration, summary, source_path, priced }: Props<"show_tour_card">) {
-  const { send, busy } = useSendMessage();
+const longDate = (iso: string) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+
+export function DatePicker({ prompt, min_date, max_date, final }: Props<"show_date_picker">) {
+  const { answer, locked, sent } = useAnswer();
+  const [date, setDate] = useState("");
+  const valid = Boolean(date) && date >= min_date && date <= max_date;
+  return (
+    <Card label="Start date">
+      <div className="mira-form">
+        <label>{prompt}
+          <input type="date" value={date} min={min_date} max={max_date} disabled={locked}
+                 onChange={(e) => setDate(e.target.value)} />
+        </label>
+        <p className="mira-source">We have rates for {longDate(min_date)} to {longDate(max_date)}.</p>
+        <button className="mira-button" disabled={locked || !valid} onClick={() => answer(`Start date: ${longDate(date)}`)}>
+          {sent ? "Sent" : nextLabel(final)}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+const AGE_OPTIONS = [
+  { value: "1", label: "Under 2" },
+  ...Array.from({ length: 16 }, (_, i) => ({ value: String(i + 2), label: String(i + 2) })),
+];
+
+export function ChildAgesPicker({ count, final }: Props<"show_child_ages_picker">) {
+  const { answer, locked, sent } = useAnswer();
+  const [ages, setAges] = useState<string[]>(Array(count).fill(""));
+  const complete = ages.every(Boolean);
+  const text = `Children's ages: ${ages.map((a) => (a === "1" ? "under 2" : a)).join(", ")}`;
+  return (
+    <Card label="Children's ages">
+      <div className="mira-form">
+        <div className="mira-ages">
+          {ages.map((a, i) => (
+            <label key={i}>Child {i + 1}
+              <select value={a} disabled={locked}
+                      onChange={(e) => setAges((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}>
+                <option value="" disabled>Age</option>
+                {AGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+          ))}
+        </div>
+        <p className="mira-source">Infants under 2 travel free; 12 and over pay adult rates.</p>
+        <button className="mira-button" disabled={locked || !complete} onClick={() => answer(text)}>
+          {sent ? "Sent" : nextLabel(final)}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+export function TourCard({ title, duration, summary, source_path, action }: Props<"show_tour_card">) {
+  const { answer, locked, sent } = useAnswer();
   return (
     <Card label={duration}>
       <h3 className="mira-card__title">{title}</h3>
       <p className="mira-card__body">{summary}</p>
       <div className="mira-card__footer">
         <span className="mira-source" title={shortSource(source_path)}>Source: our tour page</span>
-        {!priced && (
-          <button className="mira-button mira-button--ghost" disabled={busy} onClick={() => send(`I'd like a price for the ${title}.`)}>
-            Price this tour
+        {action === "choose" && (
+          <button className="mira-button mira-button--ghost" disabled={locked} onClick={() => answer(`I'd like the ${title}.`)}>
+            {sent ? "Chosen" : "Choose this tour"}
           </button>
         )}
       </div>

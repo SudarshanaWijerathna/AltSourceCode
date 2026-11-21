@@ -1,8 +1,11 @@
 "use client";
 // Every UI card Mira can show, with realistic sample data, on one page (/cards) for styling.
 // Uses the real components and the real CSS, so a style change here is a change in the chat too.
+import { Fragment } from "react";
 import {
   BookingForm,
+  ChildAgesPicker,
+  DatePicker,
   ItineraryDay,
   PriceBreakdown,
   SourceList,
@@ -28,12 +31,16 @@ const lastQuote = {
 type Item = { name: string; component: string; when: string; node: React.ReactNode };
 
 const ITEMS: Item[] = [
-  { name: "Tour card", component: "tour_card", when: "A tour is suggested or described (no price in the same reply)",
-    node: <TourCard {...sigiriya} priced={false} /> },
-  { name: "Tour card (priced reply)", component: "tour_card", when: "Same reply also shows the price: no “Price this tour”",
-    node: <TourCard {...sigiriya} priced /> },
-  { name: "Who's travelling", component: "traveller_picker", when: "Mira needs to know who is going",
-    node: <TravellerPicker prompt="Who is travelling?" options={["solo", "couple", "family", "group"]} /> },
+  { name: "Tour card (suggestion)", component: "tour_card", when: "A suggested tour the traveller can pick",
+    node: <TourCard {...sigiriya} action="choose" /> },
+  { name: "Tour card (chosen)", component: "tour_card", when: "The chosen tour: shown once, no button",
+    node: <TourCard {...sigiriya} action={null} /> },
+  { name: "Who's travelling", component: "traveller_picker", when: "Travellers missing (Continue / Get my price)",
+    node: <TravellerPicker prompt="Who is travelling?" final={false} /> },
+  { name: "Start date", component: "date_picker", when: "Start date missing; last detail → Get my price",
+    node: <DatePicker prompt="When would you like to start?" min_date="2026-11-19" max_date="2027-10-31" final /> },
+  { name: "Children's ages", component: "child_ages_picker", when: "Children given without ages",
+    node: <ChildAgesPicker count={2} final /> },
   { name: "Itinerary day", component: "itinerary_day", when: "After a multi-day tour is priced (one per day)",
     node: <ItineraryDay day={4} title="Sigiriya and Polonnaruwa" source_path={`${SRC}/tours/cultural-triangle-6-nights.md`}
       description="Sigiriya at sunrise, Polonnaruwa in the afternoon. · Meals: Breakfast, dinner · Accommodation: Sigiriya Village or similar · Entrance tickets included: Sigiriya, Polonnaruwa" /> },
@@ -94,7 +101,7 @@ export function CardGallery() {
       <section className="gallery__section">
         <h2>Phone width <span className="muted">(390px)</span></h2>
         <div className="gallery__phone">
-          {ITEMS.filter((it) => !["Tour card (priced reply)", "Your price (pay in full)"].includes(it.name)).map((it) => <div key={it.name}>{it.node}</div>)}
+          {ITEMS.filter((it) => !["Tour card (chosen)", "Your price (pay in full)"].includes(it.name)).map((it) => <Fragment key={it.name}>{it.node}</Fragment>)}
         </div>
       </section>
     </div>

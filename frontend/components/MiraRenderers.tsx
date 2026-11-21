@@ -10,6 +10,8 @@ import {
   ItineraryDay,
   PriceBreakdown,
   SourceList,
+  ChildAgesPicker,
+  DatePicker,
   SpecialistHandoff,
   TourCard,
   TravellerPicker,
@@ -24,6 +26,8 @@ const VIEWS: { [N in CatalogName]: (props: never) => React.ReactElement } = {
   show_booking_form: BookingForm,
   show_specialist_handoff: SpecialistHandoff,
   show_source_list: SourceList,
+  show_date_picker: DatePicker,
+  show_child_ages_picker: ChildAgesPicker,
 };
 
 function useCatalogRenderer<N extends CatalogName>(name: N) {
@@ -55,6 +59,8 @@ export function MiraRenderers() {
   useCatalogRenderer("show_booking_form");
   useCatalogRenderer("show_specialist_handoff");
   useCatalogRenderer("show_source_list");
+  useCatalogRenderer("show_date_picker");
+  useCatalogRenderer("show_child_ages_picker");
   // Anything outside the catalog is never drawn.
   useRenderTool({ name: "*", render: () => null }, []);
   return null;

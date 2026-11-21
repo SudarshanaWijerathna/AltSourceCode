@@ -28,7 +28,7 @@ function targetBox(chat: Element): Box | null {
   return null;
 }
 
-export function useMarkFlight(empty: boolean, mark: RefObject<HTMLImageElement | null>) {
+export function useMarkFlight(empty: boolean, mark: RefObject<Element | null>) {
   const last = useRef<Box | null>(null);
   const wasEmpty = useRef(empty);
 

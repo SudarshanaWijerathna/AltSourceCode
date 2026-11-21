@@ -6,9 +6,10 @@ from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 
 class TravellerPicker(BaseModel):
+    """Adults / children counters. `final`: this answer completes the details needed for a price."""
     component: Literal["traveller_picker"]
     prompt: str
-    options: list[Literal["solo", "couple", "family", "group"]]
+    final: bool = False
 
 
 class TourCard(BaseModel):
@@ -18,7 +19,8 @@ class TourCard(BaseModel):
     duration: str
     summary: str
     source_path: str
-    priced: bool = False  # True when the same reply already shows this tour's price
+    # "choose": a suggestion the traveller can pick. None: the tour is already chosen (no button).
+    action: Literal["choose"] | None = None
 
 
 class ItineraryDay(BaseModel):
@@ -27,6 +29,21 @@ class ItineraryDay(BaseModel):
     title: str
     description: str
     source_path: str
+
+
+class DatePicker(BaseModel):
+    """Start date input limited to dates we have rates for."""
+    component: Literal["date_picker"]
+    prompt: str
+    min_date: str  # ISO date
+    max_date: str  # ISO date
+    final: bool = False
+
+
+class ChildAgesPicker(BaseModel):
+    component: Literal["child_ages_picker"]
+    count: int = Field(ge=1, le=10)
+    final: bool = False
 
 
 class PriceBreakdown(BaseModel):
@@ -59,7 +76,8 @@ class SpecialistHandoff(BaseModel):
 
 
 Component = Annotated[
-    TravellerPicker | TourCard | ItineraryDay | PriceBreakdown | BookingForm | SpecialistHandoff | SourceList,
+    TravellerPicker | TourCard | ItineraryDay | PriceBreakdown | BookingForm | SpecialistHandoff | SourceList
+    | DatePicker | ChildAgesPicker,
     Field(discriminator="component"),
 ]
 _adapter = TypeAdapter(list[Component])

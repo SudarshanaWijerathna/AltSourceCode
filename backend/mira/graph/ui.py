@@ -6,20 +6,25 @@ from mira.data.tours import TourInfo
 from mira.pricing.models import TravellerQuote
 
 
-def tour_card(t: TourInfo, priced: bool = False) -> dict:
-    """priced=True when the same reply also carries this tour's price (hides "Price this tour")."""
+def tour_card(t: TourInfo, action: str | None = None) -> dict:
+    """action="choose" for a suggestion the traveller can pick; None once the tour is chosen."""
     return {
         "component": "tour_card", "tour_id": t.id, "title": t.title, "duration": t.duration,
-        "summary": t.summary, "source_path": t.source_path, "priced": priced,
+        "summary": t.summary, "source_path": t.source_path, "action": action,
     }
 
 
-def traveller_picker() -> dict:
-    return {
-        "component": "traveller_picker",
-        "prompt": "Who is travelling?",
-        "options": ["solo", "couple", "family", "group"],
-    }
+def traveller_picker(final: bool = False) -> dict:
+    return {"component": "traveller_picker", "prompt": "Who is travelling?", "final": final}
+
+
+def date_picker(min_date: str, max_date: str, final: bool = False) -> dict:
+    return {"component": "date_picker", "prompt": "When would you like to start?",
+            "min_date": min_date, "max_date": max_date, "final": final}
+
+
+def child_ages_picker(count: int, final: bool = False) -> dict:
+    return {"component": "child_ages_picker", "count": count, "final": final}
 
 
 def price_breakdown(q: TravellerQuote, enquiry_id: str) -> dict:

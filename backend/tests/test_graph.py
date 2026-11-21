@@ -374,14 +374,63 @@ def test_service_known_from_faq_is_answered_not_called_unknown():
     assert store.get(r.enquiry_id)["status"] == "unknown_request"
 
 
-def test_tour_card_marked_priced_only_when_reply_has_its_price():
+def ui_of(result, name):
+    return [c for c in result.ui if c["component"] == name]
+
+
+def test_guided_flow_input_cards_and_tour_card_shown_once():
     mira, _, _ = make_mira(FakeAnalyzer(
-        A(intent="price_request", tour_id="T01", start_date="2027-01-10", adults=2),
-        A(intent="trip_planning", tour_id="T05"),
+        A(intent="price_request", tour_id="T01"),
+        A(intent="trip_planning", adults=2),
+        A(intent="price_request", start_date="2027-01-10"),
     ))
-    priced = mira.turn(sid(), "Sigiriya for 2 on 10 Jan 2027")
-    card = next(c for c in priced.ui if c["component"] == "tour_card")
-    assert card["priced"] is True
-    asking = mira.turn(sid(), "Whale watching please")
-    card = next(c for c in asking.ui if c["component"] == "tour_card")
-    assert card["priced"] is False
+    s = sid()
+    r1 = mira.turn(s, "I'd like the Sigiriya and Minneriya day tour.")
+    assert [c["action"] for c in ui_of(r1, "tour_card")] == [None]      # chosen tour: no button
+    picker = ui_of(r1, "traveller_picker")[0]
+    assert picker["final"] is False                                       # date still missing
+
+    r2 = mira.turn(s, "2 adults")
+    assert ui_of(r2, "tour_card") == [], "the chosen tour's card is not repeated"
+    date = ui_of(r2, "date_picker")[0]
+    assert date["final"] is True and date["min_date"] == "2026-11-19" and date["max_date"] == "2027-10-31"
+
+    r3 = mira.turn(s, "Start date: 10 January 2027")
+    assert r3.quote["price_usd"] == "315"
+    assert [c["action"] for c in ui_of(r3, "tour_card")] == [None]
+
+
+def test_child_ages_card_when_children_have_no_ages():
+    mira, _, _ = make_mira(FakeAnalyzer(
+        A(intent="price_request", tour_id="T09", start_date="2027-05-03", adults=2, children_count=2)))
+    r = mira.turn(sid(), "Cultural Triangle for 2 adults and 2 kids from 3 May 2027")
+    ages = ui_of(r, "child_ages_picker")[0]
+    assert ages["count"] == 2 and ages["final"] is True
+    assert ui_of(r, "date_picker") == []
+
+
+def test_multi_day_date_range_ends_before_rates_expire():
+    mira, _, _ = make_mira(FakeAnalyzer(A(intent="price_request", tour_id="T09", adults=2)))
+    r = mira.turn(sid(), "Cultural Triangle for 2")
+    assert ui_of(r, "date_picker")[0]["max_date"] == "2027-10-25"   # 7-day tour must end by 31 Oct 2027
+
+
+def test_suggestions_are_choosable_and_related_tours_share_a_destination():
+    mira, _, _ = make_mira(FakeAnalyzer(
+        A(intent="price_request", unknown_tour="Sigiriya 2 day tour", trip_type="day_tour",
+          destinations=["sigiriya"], duration_days=2)))
+    r = mira.turn(sid(), "Price for a Sigiriya 2 day tour")
+    cards = ui_of(r, "tour_card")
+    assert cards and all(c["action"] == "choose" for c in cards)
+    from mira.data.tours import published_tours
+    tours = published_tours()
+    assert all("sigiriya" in (tours[c["tour_id"]].title + " ".join(tours[c["tour_id"]].destinations)).lower()
+               for c in cards), "every related tour must visit Sigiriya (no Kandy City Tour)"
+
+
+def test_unrelated_tours_never_suggested_for_named_places():
+    from mira.data.tours import published_tours
+    from mira.graph.nodes.discovery import suggest_tours
+    picked = suggest_tours({"destinations": ["sigiriya"], "duration_days": 2, "trip_type": "day_tour"},
+                           published_tours())
+    assert "T02" not in [t.id for t in picked]   # Kandy City Tour does not visit Sigiriya

@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import date
 
 from mira.graph.deps import Deps
-from mira.graph.nodes.discovery import profile_summary
+from mira.graph.nodes.discovery import profile_summary, slot_inputs
 from mira.graph.ui import (
     booking_form,
     itinerary_days,
@@ -65,7 +65,7 @@ def make(deps: Deps):
         if quote.status is QuoteStatus.INVALID_REQUEST:
             profile = {k: v for k, v in p.items() if k != "start_date"}
             return {"facts": {**base_facts, "kind": "invalid_date"}, "profile": profile,
-                    "ui": [tour_card(tour)]}
+                    "ui": slot_inputs(deps, state, profile)}
 
         enquiry_id = deps.store.save_quote(quote, state["session_id"], state.get("trace_id"))
         if quote.status is QuoteStatus.PRICED:
@@ -78,7 +78,8 @@ def make(deps: Deps):
                 },
                 "quote": view.model_dump(mode="json"),
                 "enquiry_id": enquiry_id,
-                "ui": [tour_card(tour, priced=True), *itinerary_days(tour), price_breakdown(view, enquiry_id),
+                "shown_tour": tour.id,
+                "ui": [tour_card(tour), *itinerary_days(tour), price_breakdown(view, enquiry_id),
                        booking_form(enquiry_id)],
             }
         sources = [{"title": tour.title, "source_path": tour.source_path}]

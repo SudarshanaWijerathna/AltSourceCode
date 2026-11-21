@@ -9,7 +9,8 @@ const PAD = 12; // px of panel around the cards
 
 function measure(chat: Element) {
   for (const msg of chat.querySelectorAll<HTMLElement>(".copilotKitAssistantMessage")) {
-    const cards = [...msg.children].filter((c): c is HTMLElement => c.classList.contains("mira-card"));
+    const cards = [...msg.children].filter(
+      (c): c is HTMLElement => c.classList.contains("mira-block") || c.classList.contains("mira-card"));
     if (!cards.length) {
       if (msg.dataset.cards) delete msg.dataset.cards;
       continue;

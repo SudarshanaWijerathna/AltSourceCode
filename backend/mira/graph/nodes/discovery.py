@@ -1,12 +1,18 @@
 """Discovery: asks for the single most useful missing detail, and shows something useful
-(matching tours) by the third question at the latest (Req 1). Pure code, no LLM."""
+(matching tours) by the third question at the latest (Req 1). Pure code, no LLM.
+
+Each missing detail comes with an input card (travellers, start date, children's ages). The card
+whose answer completes the details is marked `final` (its button reads "Get my price"). The chosen
+tour's card is shown once, not repeated on every question."""
 
 from __future__ import annotations
+
+from datetime import timedelta
 
 from mira.data.tours import TourInfo
 from mira.graph.deps import Deps
 from mira.graph.nodes.router import missing_slots
-from mira.graph.ui import tour_card, traveller_picker
+from mira.graph.ui import child_ages_picker, date_picker, tour_card, traveller_picker
 from mira.pricing.engine import nights_from_duration
 from mira.state import MiraState, TripProfile
 
@@ -21,13 +27,19 @@ SLOT_TEXT = {
 
 
 def suggest_tours(p: TripProfile, tours: dict[str, TourInfo], limit: int = 3) -> list[TourInfo]:
-    """Closest published tours by destination overlap and duration."""
+    """Closest published tours by destination overlap and duration.
+
+    When the traveller named places, a suggestion must visit at least one of them: length and
+    day-tour type only rank those tours, they never make an unrelated tour "related"."""
     wanted = {d.lower() for d in p.get("destinations", [])}
     days = p.get("duration_days")
     scored = []
     for t in tours.values():
         text = (t.title + " " + " ".join(t.destinations)).lower()
-        score = sum(2 for d in wanted if d in text)
+        hits = sum(1 for d in wanted if d in text)
+        if wanted and not hits:
+            continue
+        score = 2 * hits
         if days:
             nights = nights_from_duration(t.duration) or 0
             score += 1 if abs((nights + 1) - days) <= 2 else 0
@@ -42,6 +54,31 @@ def profile_summary(p: TripProfile) -> dict:
     keys = ("tour_id", "start_date", "adults", "children_count", "child_ages", "traveller_type",
             "trip_type", "destinations", "duration_days")
     return {k: p[k] for k in keys if p.get(k) not in (None, [], "")}
+
+
+def date_range(deps: Deps, today: str, tour_id: str | None) -> tuple[str, str]:
+    """Earliest and latest start dates we can price: today .. rates validity minus tour length."""
+    s = deps.engine.rates.settings
+    rate = deps.engine.rates.tours.get(tour_id or "")
+    days = rate.days if rate else 1
+    latest = (s.fx_valid_until - timedelta(days=days - 1)).isoformat() if s.fx_valid_until else "2099-12-31"
+    return today, latest
+
+
+def slot_inputs(deps: Deps, state: MiraState, p: TripProfile) -> list[dict]:
+    """Input card for the next missing detail; `final` when its answer completes the details."""
+    missing = missing_slots(p)
+    if not missing:
+        return []
+    slot, final = missing[0], len(missing) == 1
+    if slot == "travellers":
+        return [traveller_picker(final=final)]
+    if slot == "start_date":
+        lo, hi = date_range(deps, state["today"], p.get("tour_id"))
+        return [date_picker(lo, hi, final=final)]
+    if slot == "child_ages" and p.get("children_count"):
+        return [child_ages_picker(min(p["children_count"], 10), final=final)]
+    return []
 
 
 def make(deps: Deps):
@@ -74,20 +111,20 @@ def make(deps: Deps):
                     enquiry_id = None
                 return {
                     "facts": facts,
-                    "ui": [tour_card(t) for t in suggestions],
+                    "ui": [tour_card(t, action="choose") for t in suggestions],
                     "enquiry_id": enquiry_id,
                     "needs_specialist": custom,
                 }
 
-        if p.get("tour_id"):
-            t = deps.tours[p["tour_id"]]
-            ui.append(tour_card(t))
-        if slot == "travellers":
-            ui.append(traveller_picker())
+        shown = state.get("shown_tour")
+        if p.get("tour_id") and p["tour_id"] != shown:
+            ui.append(tour_card(deps.tours[p["tour_id"]]))  # chosen tour: shown once, no button
+            shown = p["tour_id"]
+        ui += slot_inputs(deps, state, p)
         facts = {"kind": "ask", "slot": SLOT_TEXT[slot], "known": profile_summary(p)}
         if p.get("tour_id"):
             t = deps.tours[p["tour_id"]]
             facts["tour"] = {"title": t.title, "duration": t.duration, "source": t.source_path}
-        return {"facts": facts, "ui": ui, "questions_asked": asked + 1}
+        return {"facts": facts, "ui": ui, "questions_asked": asked + 1, "shown_tour": shown}
 
     return run

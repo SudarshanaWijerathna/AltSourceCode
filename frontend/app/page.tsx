@@ -7,7 +7,11 @@ import { useEffect, useRef, useState } from "react";
 import { useCardGroups } from "@/lib/useCardGroups";
 import { useCentredPrompt } from "@/lib/useCentredPrompt";
 import { useMarkFlight } from "@/lib/useMarkFlight";
+import { usePromptIntro } from "@/lib/usePromptIntro";
 import { usePromptBarShape } from "@/lib/usePromptBarShape";
+import { LogoDecor } from "@/components/LogoDecor";
+import { MiraMark } from "@/components/MiraMark";
+import { TypedText } from "@/components/TypedText";
 import { party, WelcomeBack } from "@/components/WelcomeBack";
 import { forgetVisitor, visitorThread, type Welcome } from "@/lib/visitor";
 
@@ -35,9 +39,10 @@ function welcomeText(w: Welcome | null): string {
 function Greeting({ text, centred }: { text: string; centred: boolean }) {
   const { agent } = useAgent({ agentId: "mira" });
   const empty = agent.messages.length === 0;
-  const mark = useRef<HTMLImageElement>(null);
+  const mark = useRef<SVGSVGElement>(null);
   useCentredPrompt(empty && centred);
   useMarkFlight(empty && centred, mark);
+  usePromptIntro(empty && centred);
   if (!empty) return null;
   if (!centred) {
     return (
@@ -48,8 +53,8 @@ function Greeting({ text, centred }: { text: string; centred: boolean }) {
   }
   return (
     <div className="intro" role="status">
-      <img ref={mark} className="intro__mark" src="/brand/mira.svg" alt="Mira" width={120} height={71} />
-      <p>{text}</p>
+      <MiraMark ref={mark} className="intro__mark" />
+      <p><TypedText text={text} /></p>
     </div>
   );
 }
@@ -83,6 +88,7 @@ export default function Home() {
         )}
       </header>
       <div className="content">
+      <LogoDecor />
       {welcome?.last_quote && <WelcomeBack q={welcome.last_quote} />}
       <main className="chat">
         {thread && welcome && <Greeting text={welcomeText(welcome)} centred={!welcome.returning} />}

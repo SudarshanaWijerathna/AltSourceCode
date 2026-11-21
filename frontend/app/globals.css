@@ -49,6 +49,13 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
   color: var(--brand-text);
 }
 .mira-card--loading { min-height: 96px; background: var(--brand-border); opacity: .5; }
+/* A labelled card: the label sits above the card box. */
+.mira-block { width: 100%; max-width: var(--card-max); margin: var(--sp-2) 0; }
+.mira-block > .mira-card { margin: 0; max-width: 100%; }
+/* More space above a label than below it, so each label reads as belonging to the card under it.
+   Indented past the card's rounded corner so it looks aligned with the card's straight edge. */
+.mira-block + .mira-block, .mira-block + .mira-card, .mira-card + .mira-block { margin-top: 20px; }
+.mira-block > .mira-card__label { margin: 0 0 6px 8px; color: var(--accent-teal); }
 .mira-card__label {
   margin: 0 0 var(--sp-1);
   color: var(--accent);
@@ -95,7 +102,7 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
 }
 
 @media (max-width: 520px) {
-  .mira-card { max-width: 100%; }
+  .mira-card, .mira-block { max-width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
@@ -191,6 +198,8 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
 .chat .copilotKitInput > div > div:has(textarea) { grid-column: 2; }
 .chat .copilotKitInput > div > div:last-child { grid-column: 3; margin-bottom: 7px; } /* 8px padding + 7px = 15px */
 .chat .copilotKitInput div:has(> button):not(:has(textarea)) { margin-right: 0; }
+/* Text starts 24px from the bar's left edge on every screen (CopilotKit adds 20px more on phones). */
+.chat .copilotKitInput textarea { padding-left: 0 !important; }
 
 /* Page frame. The content (everything under the header) is its own column; on desktop it sits in a
    rounded, bordered box with a margin around it, and the header stands outside the box. Phones keep
@@ -237,14 +246,31 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
   text-align: center; pointer-events: none;
 }
 .intro__mark { display: block; width: 120px; height: auto; margin: 0 auto var(--sp-4); }
+/* Mira's mark draws itself when a new conversation starts (components/MiraMark.tsx); the greeting
+   fades in as the pen reaches the dot. Reduced motion: the global rule shows both at once. */
+.mira-mark__pen { stroke-dasharray: 1 1; animation-name: mira-pen; animation-timing-function: cubic-bezier(.45, 0, .55, 1); animation-fill-mode: both; }
+.mira-mark__dot { animation-name: mira-dot; animation-timing-function: cubic-bezier(.3, 1.4, .5, 1); animation-fill-mode: both; }
+@keyframes mira-pen { from { stroke-dashoffset: 1; opacity: 0; } 1% { opacity: 1; } to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes mira-dot { from { transform: scale(0); } to { transform: scale(1); } }
+/* Greeting fades in left to right, character by character, once the mark is drawn
+   (components/TypedText.tsx). Only opacity changes, so lines never reflow. */
+.typed__ch { animation: mira-char 260ms ease-out both; }
+@keyframes mira-char { from { opacity: 0; } to { opacity: 1; } }
+/* Prompt bar entrance (lib/usePromptIntro.ts): the placeholder fading in, laid over the real one. */
+.prompt-intro__text { position: absolute; white-space: nowrap; overflow: hidden; pointer-events: none; }
+.typed__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .intro p { margin: 0; font-size: var(--fs-lg); line-height: 1.45; color: var(--brand-text); }
 /* !important: CopilotKit puts an inline "transition: transform 0.2s" on this wrapper. */
 .prompt-wrap--animate { transition: transform 600ms cubic-bezier(.2, .8, .2, 1) !important; } /* = mark flight duration */
+.prompt-wrap--placing { transition: none !important; }
 .prompt-note { visibility: hidden; }
 /* Fixed copy of CopilotKit's disclaimer, always at the bottom of the chat (same size and spacing). */
 .chat-note { position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; padding: 12px 16px;
   font-size: 12px; line-height: 16px; text-align: center; color: var(--brand-muted); pointer-events: none; }
 @media (max-width: 520px) {
+  /* Phones: the prompt bar stays at the bottom (one-handed reach), so the mark and greeting are
+     centred in the space above it. */
+  .intro { transform: translate(-50%, calc(-50% - 40px)); }
   .intro__mark { width: 88px; }
   .intro p { font-size: var(--fs-md); }
 }
@@ -363,10 +389,9 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
 .gallery__item figcaption code, .gallery__head code { font-size: var(--fs-xs); color: var(--brand-muted); }
 .gallery__item figcaption .muted { font-size: var(--fs-xs); }
 .gallery__phone { width: 390px; max-width: 100%; padding: var(--sp-4); border: 1px solid var(--brand-border); border-radius: 24px; background: var(--brand-white); }
-.gallery__phone .mira-card { max-width: 100%; }
+.gallery__phone .mira-card, .gallery__phone .mira-block { max-width: 100%; }
 
 /* Traveller picker: chips sit right under the heading (no repeated question). */
-.mira-card__label + .mira-chips { margin-top: var(--sp-3); }
 
 /* Booking result (after "Pay deposit and book"): centred icon in a soft halo, title, details, action.
    Teal only, like every card; success and failure differ by icon and title. */
@@ -411,4 +436,33 @@ button, input, select, textarea { font-family: var(--font-app), var(--font); }
 /* CopilotKit's per-reply Copy button copies only the reply text, not the cards, so it is hidden on
    replies that show cards (quotes, suggestions, itineraries, bookings). Text answers - whose only
    card is the Sources list - keep it, because there the text is the whole answer. */
-.chat .copilotKitAssistantMessage:has(> .mira-card:not(.mira-card--sources)) button[aria-label="Copy"] { display: none; }
+.chat .copilotKitAssistantMessage:has(> .mira-block:not(.mira-block--sources), > .mira-result) button[aria-label="Copy"] { display: none; }
+
+/* Guided inputs: counters, date and ages. */
+.mira-stepper { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.mira-stepper__label { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--brand-text); }
+.mira-stepper__controls { display: flex; align-items: center; gap: var(--sp-2); }
+.mira-stepper__btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--accent); background: var(--brand-white);
+  color: var(--accent); font: inherit; font-size: var(--fs-lg); line-height: 1; cursor: pointer;
+  transition: background-color var(--t-fast), color var(--t-fast);
+}
+.mira-stepper__btn:hover:not(:disabled) { background: var(--accent); color: var(--brand-white); }
+.mira-stepper__btn:disabled { opacity: .35; cursor: default; }
+.mira-stepper__value { min-width: 24px; text-align: center; font-size: var(--fs-md); font-weight: var(--fw-semibold); }
+.mira-ages { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: var(--sp-3); }
+.mira-form .mira-source { margin: 0; }
+
+/* Decorative outlines of Mira's mark at the chat box's sides (components/LogoDecor.tsx): thin light
+   teal lines, cut off by the box edges, behind everything. Wide screens only. */
+.logo-decor { display: none; }
+@media (min-width: 1024px) {
+  .content { position: relative; }
+  .content > :not(.logo-decor) { position: relative; z-index: 1; }
+  .logo-decor {
+    display: block; position: absolute; z-index: 0; pointer-events: none;
+    height: 56%; width: auto; aspect-ratio: 455.37 / 270.88; color: #99D7D6; opacity: .75;
+  }
+  .logo-decor--left { left: 0; top: 4%; transform: translateX(-52%); }
+  .logo-decor--right { right: 0; bottom: 0; transform: translateX(53%); }
+}

@@ -1,10 +1,12 @@
 "use client";
-// Start screen: while the conversation is empty, lift CopilotKit's prompt bar from the bottom of the
+// Start screen (wider than a phone): while the conversation is empty, lift CopilotKit's prompt bar from the bottom of the
 // chat to just below its vertical centre (under Mira's centred greeting). When the first message is
 // sent the lift is removed and the bar slides back down (CSS transition on .prompt-wrap).
 import { useLayoutEffect } from "react";
 
 const GAP_BELOW_CENTRE = 8; // px between the chat's vertical centre and the top of the prompt bar
+// Phones keep the bar at the bottom even on the start screen: easier to reach one-handed.
+const PHONE = "(max-width: 520px)";
 
 function promptWrap(chat: Element): HTMLElement | null {
   const input = chat.querySelector<HTMLElement>(".copilotKitInput");
@@ -41,10 +43,19 @@ export function useCentredPrompt(empty: boolean) {
       // Layout position (offsetTop ignores transforms), so measuring mid-animation can't compound.
       let naturalTop = 0;
       for (let e: HTMLElement | null = wrap; e && e !== chat; e = e.offsetParent as HTMLElement | null) naturalTop += e.offsetTop;
-      const lift = Math.max(0, Math.round(naturalTop - (chat.clientHeight / 2 + GAP_BELOW_CENTRE)));
+      const lift = matchMedia(PHONE).matches
+        ? 0
+        : Math.max(0, Math.round(naturalTop - (chat.clientHeight / 2 + GAP_BELOW_CENTRE)));
+      // The first placement is instant: CopilotKit's own inline transition would otherwise slide
+      // the bar up from the bottom as the page opens. Later moves animate (.prompt-wrap--animate).
+      const first = !wrap.classList.contains("prompt-wrap--animate");
+      if (first) wrap.classList.add("prompt-wrap--placing");
       wrap.dataset.lift = String(lift);
       wrap.style.transform = lift ? `translateY(-${lift}px)` : "";
-      // Animate only after the first placement, so the page doesn't open with the bar sliding up.
+      if (first) {
+        void wrap.offsetHeight; // commit the placement before transitions return
+        wrap.classList.remove("prompt-wrap--placing");
+      }
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => wrap.classList.add("prompt-wrap--animate"));
     };

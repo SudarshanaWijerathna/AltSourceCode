@@ -69,4 +69,5 @@ class MiraState(TypedDict, total=False):
     enquiry_id: str | None
     needs_specialist: bool             # missing / expired rates etc. -> flagged for staff
     ui: list[dict]                     # validated catalog components for the client
+    shown_tour: str | None             # tour whose card was last shown (not repeated while asking)
     reply: str

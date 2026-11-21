@@ -45,7 +45,7 @@ def make(deps: Deps):
             },
             "enquiry_id": enquiry_id,
             "needs_specialist": True,
-            "ui": [*(tour_card(t) for t in related), handoff_ui],
+            "ui": [*(tour_card(t, action="choose") for t in related), handoff_ui],
         }
 
     return run
