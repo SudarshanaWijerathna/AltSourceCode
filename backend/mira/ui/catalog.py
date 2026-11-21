@@ -42,13 +42,23 @@ class BookingForm(BaseModel):
     quote_id: str
 
 
+class Source(BaseModel):
+    title: str
+    source_path: str
+
+
+class SourceList(BaseModel):
+    component: Literal["source_list"]
+    sources: list[Source] = Field(min_length=1)
+
+
 class SpecialistHandoff(BaseModel):
     component: Literal["specialist_handoff"]
     message: str
 
 
 Component = Annotated[
-    TravellerPicker | TourCard | ItineraryDay | PriceBreakdown | BookingForm | SpecialistHandoff,
+    TravellerPicker | TourCard | ItineraryDay | PriceBreakdown | BookingForm | SpecialistHandoff | SourceList,
     Field(discriminator="component"),
 ]
 _adapter = TypeAdapter(list[Component])

@@ -46,6 +46,8 @@ FALLBACK = {
     "manipulation": "I can't change our prices or offer discounts, but I'm happy to give you a normal "
                     "quote for any of our tours.",
     "invalid_date": "That date has already passed. What start date would you like instead?",
+    "answer": "I can't share prices from our tour pages, but I can work out an exact quote for your "
+              "dates and group. Which tour and dates are you thinking of?",
 }
 
 
@@ -79,9 +81,18 @@ def facts_for(state: MiraState) -> dict:
     return facts
 
 
+def _number(mention: str) -> str:
+    return re.sub(r"[^\d.]", "", mention).rstrip(".").removesuffix(".00")
+
+
 def guard_reply(text: str, facts: dict) -> tuple[str, list[str]]:
-    """Return (safe_text, violations). The LLM must not write any money amount."""
-    violations = [m.group(0) for m in MONEY.finditer(text)]
+    """Return (safe_text, violations). The LLM must not write any money amount, except figures
+    quoted from a cited policy passage (facts["allowed_amounts"], e.g. an admin fee)."""
+    allowed = set(facts.get("allowed_amounts", []))
+    violations = [
+        m.group(0) for m in MONEY.finditer(text)
+        if "%" in m.group(0) or _number(m.group(0)) not in allowed
+    ]
     if not text.strip() or violations:
         tour = (facts.get("tour") or {}).get("title", "this tour")
         return FALLBACK[facts["kind"]].format(slot=facts.get("slot", "a little more"), title=tour), violations
@@ -91,8 +102,11 @@ def guard_reply(text: str, facts: dict) -> tuple[str, list[str]]:
 def make(deps: Deps):
     def run(state: MiraState) -> dict:
         facts = facts_for(state)
-        system = RESPONDER_SYSTEM.format(today=state["today"], facts=json.dumps(facts, indent=1, default=str))
-        draft = deps.write([SystemMessage(system), *state["messages"][-HISTORY:]])
+        if facts.get("final_text"):  # grounded answer already written from content
+            draft = facts["final_text"]
+        else:
+            system = RESPONDER_SYSTEM.format(today=state["today"], facts=json.dumps(facts, indent=1, default=str))
+            draft = deps.write([SystemMessage(system), *state["messages"][-HISTORY:]])
 
         lf = get_langfuse()
         with lf.start_as_current_observation(
@@ -109,6 +123,10 @@ def make(deps: Deps):
             reply = scrubbed
         if state.get("quote"):
             reply = f"{reply}\n\n{price_sentence(state['quote'])}"
+        if facts.get("sources") and not violations:
+            reply = f"{reply}\n\nSource: " + "; ".join(
+                f"{s['title']} ({s['source_path'].split('content/')[-1]})" for s in facts["sources"]
+            )
 
         with lf.start_as_current_observation(
             as_type="guardrail", name="validate-ui-components", input=state.get("ui", []),

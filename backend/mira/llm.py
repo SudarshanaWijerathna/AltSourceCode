@@ -9,7 +9,7 @@ from __future__ import annotations
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from mira.config import Settings
-from mira.state import TurnAnalysis
+from mira.state import GroundedAnswer, TurnAnalysis
 
 
 def chat_model(
@@ -45,3 +45,13 @@ def make_writer(settings: Settings):
         return model.invoke(messages).text  # .text excludes thinking blocks
 
     return write
+
+
+def make_answerer(settings: Settings):
+    model = chat_model(settings, settings.mira_model_large, name="answer-from-content")
+    structured = model.with_structured_output(GroundedAnswer)
+
+    def answer(messages: list) -> GroundedAnswer:
+        return structured.invoke(messages, config={"run_name": "ground-answer"})
+
+    return answer

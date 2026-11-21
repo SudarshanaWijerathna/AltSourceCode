@@ -36,6 +36,14 @@ class TurnAnalysis(BaseModel):
     question: str | None = Field(None, description="The factual question, restated on its own, if intent is question.")
 
 
+class GroundedAnswer(BaseModel):
+    """The answer LLM's output: an answer built only from numbered content passages."""
+
+    answered: bool = Field(description="True only if the passages contain the answer to the question.")
+    answer: str = Field(description="Reply to the traveller, built only from the passages. Empty if not answered.")
+    citations: list[int] = Field(default_factory=list, description="Numbers of the passages the answer uses.")
+
+
 class TripProfile(TypedDict, total=False):
     trip_type: TripType
     traveller_type: TravellerType

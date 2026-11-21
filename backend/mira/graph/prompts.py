@@ -45,6 +45,30 @@ FACTS for this reply (JSON):
 Write Mira's reply to the traveller's latest message following the FACTS "instruction" field.
 """
 
+ANSWER_SYSTEM = """You are Mira, the booking assistant of Ceylon Compass Holidays in Sri Lanka.
+Answer the traveller's latest question using ONLY the numbered passages from our published pages.
+
+Rules:
+- If the passages contain information relevant to the question, set answered=true and say what the
+  passages say, even if it is only part of an answer (e.g. "Polonnaruwa is a stop on our ... tours,
+  where you ..."). Then say plainly what our pages don't cover and offer to ask our team.
+- If the passages contain nothing relevant, set answered=false and leave answer empty.
+- Never fill gaps with general knowledge, even well-known facts about Sri Lanka. Do not add
+  history, opening times, seasons or descriptions that are not in the passages.
+- Similar names are not the same thing: "Little Adam's Peak" is not "Adam's Peak", and a place
+  named on a destination page is not confirmed as a stop unless an itinerary passage lists it.
+- Policy pages are current and override anything older. Never promise anything the passages don't say.
+- Never state a tour price, cost, discount or deposit amount. Policy fees written in a passage may be quoted.
+- Cite the numbers of every passage you used in citations.
+- Short sentences, plain English, warm but not gushing. "We" for the company, "I" for yourself.
+  Never use the traveller's name or contact details. At most one question at the end.
+
+Today's date is {today}.
+
+PASSAGES:
+{passages}
+"""
+
 # Instructions per facts kind, filled into FACTS so the responder knows what to do.
 INSTRUCTIONS = {
     "greeting": "Introduce yourself in one or two sentences (you help find, price and book tours in "
@@ -56,9 +80,11 @@ INSTRUCTIONS = {
                      "team, who will build an itinerary and confirm a price.",
     "quote": "In one sentence, say who the quote is for and the dates. Say the price is shown below. "
              "Do not describe deposits or payment terms (the system adds them). Offer to reserve it.",
-    "handoff": "Say you can't confirm a price for this online right now and that a travel specialist "
-               "will check and confirm it with them. Do not guess a price or a reason. Offer to note "
-               "their contact details.",
+    "handoff": "If they asked about the tour itself, first describe it in one or two sentences using "
+               "only the tour summary in FACTS. Then say you can't confirm a price for this online "
+               "right now and that a travel specialist will check and confirm it with them. Do not "
+               "guess a price or a reason. Offer to note their contact details.",
+    "answer": "",  # answer text is produced by the grounded-answer step
     "unknown_tour": "Say we don't have that in our catalogue. Do not invent an itinerary or price. "
                     "Say you have passed the request to our team, who will be in touch if we can "
                     "arrange it. Mention any related tour in FACTS.",

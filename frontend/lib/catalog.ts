@@ -9,5 +9,6 @@ export const Component = z.discriminatedUnion("component", [
   z.object({ component: z.literal("price_breakdown"), quote_id: z.string(), price_usd: z.number(), deposit_usd: z.number(), balance_usd: z.number().default(0), balance_due: z.string().nullable().default(null) }),
   z.object({ component: z.literal("booking_form"), quote_id: z.string() }),
   z.object({ component: z.literal("specialist_handoff"), message: z.string() }),
+  z.object({ component: z.literal("source_list"), sources: z.array(z.object({ title: z.string(), source_path: z.string() })).min(1) }),
 ]);
 export type Component = z.infer<typeof Component>;

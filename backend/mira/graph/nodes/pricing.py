@@ -47,7 +47,8 @@ def make(deps: Deps):
         tour = deps.tours[quote.tour_id]
         view = quote.traveller_view()
         base_facts = {
-            "tour": {"title": tour.title, "duration": tour.duration, "source": tour.source_path},
+            "tour": {"title": tour.title, "duration": tour.duration, "summary": tour.summary,
+                     "source": tour.source_path},
             "known": profile_summary(p),
         }
 

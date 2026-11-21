@@ -36,5 +36,9 @@ def booking_form(enquiry_id: str) -> dict:
     return {"component": "booking_form", "quote_id": enquiry_id}
 
 
+def source_list(sources: list[dict]) -> dict:
+    return {"component": "source_list", "sources": sources}
+
+
 def specialist_handoff(message: str) -> dict:
     return {"component": "specialist_handoff", "message": message}

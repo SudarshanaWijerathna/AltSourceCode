@@ -38,7 +38,8 @@ class TurnResult:
 
 
 def default_deps(settings: Settings | None = None) -> Deps:
-    from mira.llm import make_analyzer, make_writer
+    from mira.llm import make_analyzer, make_answerer, make_writer
+    from mira.retrieval import get_index
 
     s = settings or get_settings()
     return Deps(
@@ -48,6 +49,8 @@ def default_deps(settings: Settings | None = None) -> Deps:
         store=EnquiryStore(s.mira_db_url),
         tours=published_tours(),
         catalog_text=catalog_for_prompt(),
+        answer=make_answerer(s),
+        index=get_index(),
     )
 
 

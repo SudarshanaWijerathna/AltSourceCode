@@ -12,7 +12,8 @@ from mira.enquiries.store import EnquiryStore
 from mira.graph.deps import Deps
 from mira.graph.nodes.respond import MONEY
 from mira.pricing import get_engine
-from mira.state import TurnAnalysis
+from mira.retrieval import get_index
+from mira.state import GroundedAnswer, TurnAnalysis
 from mira.tracing import redact
 
 
@@ -41,11 +42,22 @@ class FakeWriter:
         return self.text
 
 
-def make_mira(analyzer, writer=None) -> tuple[Mira, EnquiryStore, FakeWriter]:
+class FakeAnswerer:
+    def __init__(self, result: GroundedAnswer | None = None):
+        self.result = result or GroundedAnswer(answered=False, answer="", citations=[])
+        self.prompts: list[str] = []
+
+    def __call__(self, messages):
+        self.prompts.append(messages[0].content)
+        return self.result
+
+
+def make_mira(analyzer, writer=None, answerer=None) -> tuple[Mira, EnquiryStore, FakeWriter]:
     writer = writer or FakeWriter()
     store = EnquiryStore("sqlite:///:memory:")
     deps = Deps(analyze=analyzer, write=writer, engine=get_engine(), store=store,
-                tours=published_tours(), catalog_text=catalog_for_prompt())
+                tours=published_tours(), catalog_text=catalog_for_prompt(),
+                answer=answerer or FakeAnswerer(), index=get_index())
     return Mira(deps=deps), store, writer
 
 
@@ -243,6 +255,70 @@ def test_llm_failure_gives_friendly_message():
 ])
 def test_redact_hides_personal_details(text, hidden):
     assert hidden not in redact(text)
+
+
+# --------------------------------------------------------------------------- answers from content
+
+def test_grounded_answer_shows_sources_and_no_teaser_price():
+    answerer = FakeAnswerer(GroundedAnswer(
+        answered=True, answer="Children aged 2 to 11 pay child rates and get an extra bed.", citations=[1]))
+    mira, _, writer = make_mira(
+        FakeAnalyzer(A(intent="question", tour_id="T07", question="Do kids under 12 stay free?")),
+        answerer=answerer,
+    )
+    r = mira.turn(sid(), "Do kids under 12 stay free on the Kandy Heritage Stay?")
+    assert r.route == "answer"
+    assert "Source:" in r.reply and "policies/children-and-infants.md" in r.reply
+    assert "source_list" in components(r)
+    assert writer.prompts == [], "grounded answers do not need a second LLM call"
+    passages = answerer.prompts[0]
+    assert "stay free!" not in passages and "USD 210" not in passages
+
+
+def test_answer_without_valid_citation_is_not_trusted():
+    answerer = FakeAnswerer(GroundedAnswer(answered=True, answer="Yala is open all year.", citations=[42]))
+    mira, _, writer = make_mira(
+        FakeAnalyzer(A(intent="question", question="Is Yala open in September?")),
+        FakeWriter("I don't have that information. I can pass your question to our team."),
+        answerer=answerer,
+    )
+    r = mira.turn(sid(), "Is Yala open in September?")
+    assert r.route == "no_content" and "open all year" not in r.reply
+    assert len(writer.prompts) == 1
+
+
+def test_not_answered_offers_enquiry():
+    mira, _, _ = make_mira(
+        FakeAnalyzer(A(intent="question", question="Is Yala open in September?")),
+        FakeWriter("I don't have that in our tour pages. Shall I ask our team?"),
+        answerer=FakeAnswerer(GroundedAnswer(answered=False, answer="", citations=[])),
+    )
+    r = mira.turn(sid(), "Is Yala open in September?")
+    assert r.route == "no_content" and "source_list" not in components(r)
+
+
+def test_nothing_retrieved_skips_answer_llm():
+    answerer = FakeAnswerer()
+    mira, _, _ = make_mira(FakeAnalyzer(A(intent="question", question="Do you have a tour to Jaffna?")),
+                           answerer=answerer)
+    r = mira.turn(sid(), "Do you have a tour to Jaffna?")
+    assert r.route == "no_content" and answerer.prompts == []
+
+
+def test_policy_fee_may_be_quoted_but_tour_price_may_not():
+    ok = FakeAnswerer(GroundedAnswer(
+        answered=True, citations=[1, 2, 3, 4, 5, 6],
+        answer="Day and city tours can be cancelled free up to 48 hours before the start. "
+               "For multi-day tours, 30+ days before gives a full refund minus a USD 50 admin fee."))
+    mira, _, _ = make_mira(FakeAnalyzer(A(intent="question", tour_id="T04", question="cancellation policy")),
+                           answerer=ok)
+    r = mira.turn(sid(), "What's the cancellation policy for the Galle Fort walking tour?")
+    assert "USD 50 admin fee" in r.reply and "48 hours" in r.reply
+
+    bad = FakeAnswerer(GroundedAnswer(answered=True, citations=[1], answer="It costs from USD 35 per person."))
+    mira, _, _ = make_mira(FakeAnalyzer(A(intent="question", tour_id="T04", question="price")), answerer=bad)
+    r = mira.turn(sid(), "How much is Galle Fort?")
+    assert "35" not in r.reply
 
 
 def test_introduced_name_is_removed_from_reply():

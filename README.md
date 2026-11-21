@@ -38,14 +38,15 @@ FastAPI ──► Mira.turn()  — one Langfuse trace per turn, session = conver
             router  (LLM: structured TurnAnalysis → code merges profile, code picks route)
               ├─► discovery  (code: next missing detail, ≤3 questions, tour suggestions)
               ├─► pricing    (code: PricingEngine → private enquiry + trace id)
-              ├─► answer     (content-grounded answers; full retrieval next)
+              ├─► answer     (BM25 retrieval → LLM answers from numbered passages → code checks citations)
               ├─► handoff    (code: unknown tour → enquiry for sales)
               └─► respond    (LLM writes words only → price guard → name scrub
                               → price sentence from stored quote → UI catalog validation)
    │
    ├── SQLite: enquiries (cost / price / GP% / staff reason / trace id)
    └── Langfuse: agent → chains → generations (classify-turn, write-reply),
-                 tool (calculate-quote), guardrails (check-price-mentions, validate-ui-components);
+                 retriever (retrieve-content), tool (calculate-quote),
+                 guardrails (check-grounding, check-price-mentions, validate-ui-components);
                  personal details masked at export
 ```
 
@@ -104,6 +105,24 @@ Anything it cannot price returns a status and a staff-only reason — never a nu
 
 Margins come from the workbook; `MIRA_MARGIN_DAY_TOUR` / `MIRA_MARGIN_MULTI_DAY` override them
 without touching the workbook.
+
+## Answering from content
+
+`mira/retrieval` indexes **published** pages only (the draft T15 never reaches Mira), split at
+headings, with an overview chunk per tour from its front matter. Retrieval is BM25: the corpus is
+~4k words of proper nouns and policy terms, so lexical search is precise, deterministic, explainable
+in the trace and needs no embedding service.
+
+- **Prices never come from content.** Teaser prices ("From USD 85") and offers ("save 15%") are
+  stripped from tour and destination chunks. Policy fees (the USD 50 admin fee) are policy facts and
+  may be quoted only when the cited passage contains them; the price guard enforces this.
+- **Newer policies win** (`retrieval/rules.py`). P02 and P03 state that they replace older terms on
+  tour pages, so Galle Fort's "24 hours" cancellation line and Kandy Heritage Stay's "kids under 12
+  stay free!" are removed before the LLM sees them, and the replacing policy is retrieved instead.
+- **Answers must cite.** The answer LLM returns `answered`, `answer`, `citations`. Code accepts the
+  answer only if it cites passages that were actually retrieved; otherwise Mira says it doesn't have
+  that information and offers to ask the team. Sources are appended to the reply and sent as a
+  `source_list` component.
 
 ## Dataset notes
 
