@@ -6,10 +6,11 @@ from mira.data.tours import TourInfo
 from mira.pricing.models import TravellerQuote
 
 
-def tour_card(t: TourInfo) -> dict:
+def tour_card(t: TourInfo, priced: bool = False) -> dict:
+    """priced=True when the same reply also carries this tour's price (hides "Price this tour")."""
     return {
         "component": "tour_card", "tour_id": t.id, "title": t.title, "duration": t.duration,
-        "summary": t.summary, "source_path": t.source_path,
+        "summary": t.summary, "source_path": t.source_path, "priced": priced,
     }
 
 

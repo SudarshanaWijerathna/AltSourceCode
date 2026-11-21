@@ -18,6 +18,7 @@ class TourCard(BaseModel):
     duration: str
     summary: str
     source_path: str
+    priced: bool = False  # True when the same reply already shows this tour's price
 
 
 class ItineraryDay(BaseModel):

@@ -372,3 +372,16 @@ def test_service_known_from_faq_is_answered_not_called_unknown():
     assert r.route == "answer" and r.needs_specialist and r.quote is None
     assert "policies/faq.md" in r.reply
     assert store.get(r.enquiry_id)["status"] == "unknown_request"
+
+
+def test_tour_card_marked_priced_only_when_reply_has_its_price():
+    mira, _, _ = make_mira(FakeAnalyzer(
+        A(intent="price_request", tour_id="T01", start_date="2027-01-10", adults=2),
+        A(intent="trip_planning", tour_id="T05"),
+    ))
+    priced = mira.turn(sid(), "Sigiriya for 2 on 10 Jan 2027")
+    card = next(c for c in priced.ui if c["component"] == "tour_card")
+    assert card["priced"] is True
+    asking = mira.turn(sid(), "Whale watching please")
+    card = next(c for c in asking.ui if c["component"] == "tour_card")
+    assert card["priced"] is False

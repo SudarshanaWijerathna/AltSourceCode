@@ -12,6 +12,7 @@ export const TourCard = z.object({
   duration: z.string(),
   summary: z.string(),
   source_path: z.string(),
+  priced: z.boolean().default(false), // the same reply already shows this tour's price
 });
 export const ItineraryDay = z.object({
   day: z.number().int().min(1),

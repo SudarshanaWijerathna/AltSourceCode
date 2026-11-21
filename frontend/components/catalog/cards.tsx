@@ -5,11 +5,10 @@ import { useState } from "react";
 import { type Props, shortSource, usd } from "@/lib/catalog";
 import { useSendMessage } from "@/lib/useSendMessage";
 
-type Accent = "teal" | "leaf" | "sun" | "sky" | "coral" | "orange";
-
-function Card({ accent, label, children }: { accent: Accent; label: string; children: React.ReactNode }) {
+/** Every card uses black text and one colour: the brand teal (headings, buttons, chips, focus). */
+function Card({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <section className="mira-card" style={{ ["--accent" as string]: `var(--${accent === "orange" ? "brand-orange" : `accent-${accent}`})` }}>
+    <section className={className ? `mira-card ${className}` : "mira-card"}>
       <p className="mira-card__label">{label}</p>
       {children}
     </section>
@@ -23,12 +22,13 @@ const TRAVELLER_TEXT: Record<string, string> = {
   group: "We're a group of friends.",
 };
 
+// The heading already asks the question (and Mira's reply above usually does too), so the payload's
+// `prompt` is not repeated in the card; it is kept for screen readers via aria-label.
 export function TravellerPicker({ prompt, options }: Props<"show_traveller_picker">) {
   const { send, busy } = useSendMessage();
   return (
-    <Card accent="coral" label="Who's travelling">
-      <p className="mira-card__body">{prompt}</p>
-      <div className="mira-chips">
+    <Card label="Who's travelling">
+      <div className="mira-chips" role="group" aria-label={prompt}>
         {options.map((o) => (
           <button key={o} className="mira-chip" disabled={busy} onClick={() => send(TRAVELLER_TEXT[o])}>
             {o[0].toUpperCase() + o.slice(1)}
@@ -39,17 +39,19 @@ export function TravellerPicker({ prompt, options }: Props<"show_traveller_picke
   );
 }
 
-export function TourCard({ title, duration, summary, source_path }: Props<"show_tour_card">) {
+export function TourCard({ title, duration, summary, source_path, priced }: Props<"show_tour_card">) {
   const { send, busy } = useSendMessage();
   return (
-    <Card accent="teal" label={duration}>
+    <Card label={duration}>
       <h3 className="mira-card__title">{title}</h3>
       <p className="mira-card__body">{summary}</p>
       <div className="mira-card__footer">
-        <span className="mira-source">Source: {shortSource(source_path)}</span>
-        <button className="mira-button mira-button--ghost" disabled={busy} onClick={() => send(`I'd like a price for the ${title}.`)}>
-          Price this tour
-        </button>
+        <span className="mira-source" title={shortSource(source_path)}>Source: our tour page</span>
+        {!priced && (
+          <button className="mira-button mira-button--ghost" disabled={busy} onClick={() => send(`I'd like a price for the ${title}.`)}>
+            Price this tour
+          </button>
+        )}
       </div>
     </Card>
   );
@@ -58,7 +60,7 @@ export function TourCard({ title, duration, summary, source_path }: Props<"show_
 export function ItineraryDay({ day, title, description }: Props<"show_itinerary_day">) {
   const [first, ...rest] = description.split(" · ");
   return (
-    <Card accent="sky" label={`Day ${day}`}>
+    <Card label={`Day ${day}`}>
       <h3 className="mira-card__title">{title}</h3>
       <p className="mira-card__body">{first}</p>
       {rest.length > 0 && (
@@ -73,7 +75,7 @@ export function ItineraryDay({ day, title, description }: Props<"show_itinerary_
 export function PriceBreakdown({ quote_id, price_usd, deposit_usd, balance_usd, balance_due }: Props<"show_price_breakdown">) {
   const inFull = deposit_usd === price_usd;
   return (
-    <Card accent="orange" label="Your price">
+    <Card label="Your price">
       <p className="mira-price">{usd(price_usd)}</p>
       <dl className="mira-rows">
         <div><dt>{inFull ? "Pay when you book" : "Deposit to book"}</dt><dd>{usd(deposit_usd)}</dd></div>
@@ -84,11 +86,14 @@ export function PriceBreakdown({ quote_id, price_usd, deposit_usd, balance_usd, 
   );
 }
 
-type BookingOutcome = { status: string; message: string; next_step: string; booking_ref?: string | null };
+export type BookingOutcome = {
+  status: string; message: string; next_step: string; booking_ref?: string | null; deposit_usd?: string | null;
+};
 
-export function BookingForm({ quote_id }: Props<"show_booking_form">) {
-  const [state, setState] = useState<"idle" | "sending" | "done">("idle");
-  const [outcome, setOutcome] = useState<BookingOutcome | null>(null);
+/** `preview` shows a finished booking outcome without submitting (used by the /cards gallery). */
+export function BookingForm({ quote_id, preview }: Props<"show_booking_form"> & { preview?: BookingOutcome }) {
+  const [state, setState] = useState<"idle" | "sending" | "done">(preview ? "done" : "idle");
+  const [outcome, setOutcome] = useState<BookingOutcome | null>(preview ?? null);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -122,20 +127,11 @@ export function BookingForm({ quote_id }: Props<"show_booking_form">) {
   }
 
   if (state === "done" && outcome) {
-    const ok = outcome.status === "confirmed";
-    return (
-      <Card accent={ok ? "leaf" : "sun"} label={ok ? "Booked" : "Not booked yet"}>
-        <p className="mira-card__body"><strong>{outcome.message}</strong></p>
-        <p className="mira-card__body">{outcome.next_step}</p>
-        {!ok && (
-          <button className="mira-button mira-button--ghost" onClick={() => setState("idle")}>Try again</button>
-        )}
-      </Card>
-    );
+    return <BookingResult outcome={outcome} onRetry={() => setState("idle")} />;
   }
 
   return (
-    <Card accent="leaf" label="Reserve this trip">
+    <Card label="Reserve this trip">
       <form className="mira-form" onSubmit={submit}>
         <label>Full name<input name="name" required autoComplete="name" /></label>
         <label>Email<input name="email" type="email" required autoComplete="email" /></label>
@@ -156,9 +152,73 @@ export function BookingForm({ quote_id }: Props<"show_booking_form">) {
   );
 }
 
+const RESULT_TITLE: Record<string, string> = {
+  confirmed: "You're booked",
+  payment_failed: "Payment didn't go through",
+  booking_failed: "Booking not completed",
+  not_bookable: "We can't book this yet",
+};
+
+function ResultIcon({ ok }: { ok: boolean }) {
+  return (
+    <span className="mira-result__icon" aria-hidden>
+      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+        {ok ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : <path d="M7 7l10 10M17 7L7 17" />}
+      </svg>
+    </span>
+  );
+}
+
+/** Small icon button that copies `text`; shows a tick for a moment after copying. */
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Clipboard API blocked (e.g. insecure context): fall back to a temporary selection.
+      const area = document.createElement("textarea");
+      area.value = text;
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <button type="button" className="mira-copy" onClick={copy} aria-label={copied ? "Copied" : label} title={copied ? "Copied" : label}>
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {copied ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : (<><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></>)}
+      </svg>
+    </button>
+  );
+}
+
+/** Outcome of "Pay deposit and book": centred icon, title, details and the next step. */
+function BookingResult({ outcome, onRetry }: { outcome: BookingOutcome; onRetry: () => void }) {
+  const ok = outcome.status === "confirmed";
+  return (
+    <section className={`mira-card mira-result ${ok ? "mira-result--ok" : "mira-result--fail"}`} role="status">
+      <ResultIcon ok={ok} />
+      <h3 className="mira-result__title">{RESULT_TITLE[outcome.status] ?? (ok ? "You're booked" : "Not booked yet")}</h3>
+      <p className="mira-result__text">{outcome.message}</p>
+      {ok && outcome.booking_ref && (
+        <p className="mira-result__ref" aria-label={`Booking reference ${outcome.booking_ref}`}>
+          <strong>{outcome.booking_ref}</strong>
+          <CopyButton text={outcome.booking_ref} label="Copy booking reference" />
+        </p>
+      )}
+      <p className="mira-result__text mira-result__text--muted">{outcome.next_step}</p>
+      {!ok && <button className="mira-button mira-result__action" onClick={onRetry}>Try again</button>}
+    </section>
+  );
+}
+
 export function SpecialistHandoff({ message }: Props<"show_specialist_handoff">) {
   return (
-    <Card accent="sun" label="Passed to our team">
+    <Card label="Passed to our team">
       <p className="mira-card__body">{message}</p>
       <p className="mira-source">A travel specialist has been notified and will confirm with you.</p>
     </Card>
@@ -167,10 +227,10 @@ export function SpecialistHandoff({ message }: Props<"show_specialist_handoff">)
 
 export function SourceList({ sources }: Props<"show_source_list">) {
   return (
-    <Card accent="sky" label="Sources">
+    <Card label="Sources" className="mira-card--sources">
       <ul className="mira-list">
         {sources.map((s) => (
-          <li key={s.source_path}>{s.title} <span className="mira-source">({shortSource(s.source_path)})</span></li>
+          <li key={s.source_path} title={shortSource(s.source_path)}>{s.title}</li>
         ))}
       </ul>
     </Card>

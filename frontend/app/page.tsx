@@ -4,21 +4,16 @@
 import { CopilotChat, useAgent } from "@copilotkit/react-core/v2";
 import { useEffect, useRef, useState } from "react";
 
-import { usd } from "@/lib/catalog";
+import { useCardGroups } from "@/lib/useCardGroups";
 import { useCentredPrompt } from "@/lib/useCentredPrompt";
 import { useMarkFlight } from "@/lib/useMarkFlight";
 import { usePromptBarShape } from "@/lib/usePromptBarShape";
-import { forgetVisitor, type LastQuote, visitorThread, type Welcome } from "@/lib/visitor";
+import { party, WelcomeBack } from "@/components/WelcomeBack";
+import { forgetVisitor, visitorThread, type Welcome } from "@/lib/visitor";
 
 const NEW_VISITOR =
   "Hi, I'm Mira. I can find a tour, give you an exact price and book it. Are you after a day tour or a longer trip?";
 
-function party(q: LastQuote) {
-  const parts = [`${q.adults} adult${q.adults === 1 ? "" : "s"}`];
-  if (q.children) parts.push(`${q.children} child${q.children === 1 ? "" : "ren"}`);
-  if (q.infants) parts.push(`${q.infants} infant${q.infants === 1 ? "" : "s"}`);
-  return parts.join(", ");
-}
 
 function welcomeText(w: Welcome | null): string {
   const q = w?.last_quote;
@@ -31,33 +26,26 @@ function welcomeText(w: Welcome | null): string {
     : `Welcome back. Last time you looked at the ${trip}. I'll check the price again for you. Shall I?`;
 }
 
-function WelcomeBack({ q }: { q: LastQuote }) {
-  // Closing hides the card for this page view only; it shows again on the next load.
-  const [closed, setClosed] = useState(false);
-  if (closed) return null;
-  const close = () => setClosed(true);
-  return (
-    <aside className="welcome mira-card" style={{ ["--accent" as string]: "var(--accent-leaf)" }}>
-      <button className="welcome__close" onClick={close} aria-label="Close welcome back message">×</button>
-      <p className="mira-card__label">Welcome back · your last quote</p>
-      <p className="welcome__trip"><strong>{q.tour_title ?? q.tour_id}</strong> · <span className="nowrap">{party(q)}</span> · <span className="nowrap">from {q.start_date}</span></p>
-      {q.still_valid && q.price_usd ? (
-        <p className="welcome__price"><span className="nowrap">{usd(Number(q.price_usd))} total</span> · <span className="nowrap">deposit {usd(Number(q.deposit_usd))}</span></p>
-      ) : (
-        <p className="mira-source">Prices change with dates and rates, so ask Mira to re-check it.</p>
-      )}
-    </aside>
-  );
-}
 
-/** Start screen: Mira's mark and opening line in the middle, the prompt bar lifted under them. */
-function Greeting({ text }: { text: string }) {
+/** Opening line before the conversation starts.
+ *  New visitor: the start screen - Mira's mark and greeting centred, the prompt bar lifted under
+ *  them; on the first prompt the mark flies to the reply and the bar slides down.
+ *  Returning visitor: no start screen - the greeting shows as an ordinary Mira message at the top
+ *  and the prompt bar stays at the bottom (no animation). */
+function Greeting({ text, centred }: { text: string; centred: boolean }) {
   const { agent } = useAgent({ agentId: "mira" });
   const empty = agent.messages.length === 0;
   const mark = useRef<HTMLImageElement>(null);
-  useCentredPrompt(empty);
-  useMarkFlight(empty, mark);
+  useCentredPrompt(empty && centred);
+  useMarkFlight(empty && centred, mark);
   if (!empty) return null;
+  if (!centred) {
+    return (
+      <div className="greeting" role="status">
+        <p>{text}</p>
+      </div>
+    );
+  }
   return (
     <div className="intro" role="status">
       <img ref={mark} className="intro__mark" src="/brand/mira.svg" alt="Mira" width={120} height={71} />
@@ -70,6 +58,7 @@ export default function Home() {
   const [thread, setThread] = useState<{ visitorId: string; threadId: string } | null>(null);
   const [welcome, setWelcome] = useState<Welcome | null>(null);
   const { narrow } = usePromptBarShape();
+  useCardGroups(Boolean(thread && welcome));
 
   useEffect(() => {
     const t = visitorThread();
@@ -96,7 +85,7 @@ export default function Home() {
       <div className="content">
       {welcome?.last_quote && <WelcomeBack q={welcome.last_quote} />}
       <main className="chat">
-        {thread && welcome && <Greeting text={welcomeText(welcome)} />}
+        {thread && welcome && <Greeting text={welcomeText(welcome)} centred={!welcome.returning} />}
         <p className="chat-note">AI can make mistakes. Please verify important information.</p>
         {thread && welcome && (
           <CopilotChat

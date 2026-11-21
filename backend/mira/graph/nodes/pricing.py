@@ -78,7 +78,7 @@ def make(deps: Deps):
                 },
                 "quote": view.model_dump(mode="json"),
                 "enquiry_id": enquiry_id,
-                "ui": [tour_card(tour), *itinerary_days(tour), price_breakdown(view, enquiry_id),
+                "ui": [tour_card(tour, priced=True), *itinerary_days(tour), price_breakdown(view, enquiry_id),
                        booking_form(enquiry_id)],
             }
         sources = [{"title": tour.title, "source_path": tour.source_path}]
