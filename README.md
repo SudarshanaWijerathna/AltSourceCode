@@ -12,7 +12,7 @@ enquiry for staff.
 Requirements: Python 3.11+, Node 20+.
 
 ```bash
-cp .env.example .env        # add your LLM and Langfuse keys
+cp .env.example .env        # add your Gemini and Langfuse keys
 npm start                   # one command: installs everything, starts API (:8000) + web (:3000)
 ```
 
