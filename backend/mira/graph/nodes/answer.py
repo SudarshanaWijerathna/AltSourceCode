@@ -45,6 +45,53 @@ def _query(state: MiraState) -> str:
     return question or last
 
 
+def retrieve(deps: Deps, query: str, focus: str | None = None,
+             doc_types: tuple[str, ...] | None = None) -> list[Hit]:
+    with get_langfuse().start_as_current_observation(
+        as_type="retriever", name="retrieve-content",
+        input={"query": query, "focus_tour": focus, "doc_types": doc_types},
+    ) as r:
+        hits = deps.index.search(query, k=MAX_PASSAGES, focus_doc=focus)
+        if doc_types:
+            hits = [h for h in hits if h.chunk.doc_type in doc_types]
+        r.update(
+            output=[{"id": h.chunk.id, "source": h.chunk.source_path, "score": h.score, "why": h.why,
+                     "text": h.chunk.text[:400]} for h in hits],
+            metadata={"superseded": sorted({s for h in hits for s in h.chunk.superseded})},
+        )
+    return hits
+
+
+def grounded_answer(deps: Deps, state: MiraState, hits: list[Hit]) -> dict | None:
+    """Ask the answer LLM to answer from `hits`; return answer facts, or None if not grounded."""
+    if not hits:
+        return None
+    system = ANSWER_SYSTEM.format(today=state["today"], passages=format_passages(hits))
+    result = deps.answer([SystemMessage(system), *state["messages"][-HISTORY:]])
+
+    cited = sorted({n for n in result.citations if 1 <= n <= len(hits)})
+    with get_langfuse().start_as_current_observation(
+        as_type="guardrail", name="check-grounding",
+        input={"answered": result.answered, "citations": result.citations, "passages": len(hits)},
+    ) as g:
+        grounded = result.answered and bool(result.answer.strip()) and bool(cited)
+        g.update(output={"grounded": grounded, "valid_citations": cited},
+                 level="DEFAULT" if grounded or not result.answered else "WARNING")
+    if not grounded:
+        return None
+
+    used = [hits[n - 1].chunk for n in cited]
+    sources, seen = [], set()
+    for c in used:
+        if c.source_path not in seen:
+            seen.add(c.source_path)
+            sources.append({"title": c.title, "source_path": c.source_path})
+    # Money figures may only be repeated from cited policy passages (e.g. an admin fee).
+    allowed = sorted({a for c in used if c.doc_type in ("policy", "faq") for a in amounts_in(c.text)})
+    return {"kind": "answer", "final_text": result.answer.strip(), "sources": sources,
+            "allowed_amounts": allowed}
+
+
 def make(deps: Deps):
     def run(state: MiraState) -> dict:
         p = state["profile"]
@@ -53,52 +100,10 @@ def make(deps: Deps):
         if focus and focus in deps.tours:
             query = f"{query} {deps.tours[focus].title}"
 
-        lf = get_langfuse()
-        with lf.start_as_current_observation(
-            as_type="retriever", name="retrieve-content", input={"query": query, "focus_tour": focus},
-        ) as r:
-            hits = deps.index.search(query, k=MAX_PASSAGES, focus_doc=focus)
-            r.update(
-                output=[{"id": h.chunk.id, "source": h.chunk.source_path, "score": h.score, "why": h.why,
-                         "text": h.chunk.text[:400]} for h in hits],
-                metadata={"superseded": sorted({s for h in hits for s in h.chunk.superseded})},
-            )
-
         ui = [tour_card(deps.tours[focus])] if focus in deps.tours else []
-        if not hits:
+        facts = grounded_answer(deps, state, retrieve(deps, query, focus))
+        if facts is None:
             return {"facts": {"kind": "no_content", "question": query}, "ui": ui}
-
-        system = ANSWER_SYSTEM.format(today=state["today"], passages=format_passages(hits))
-        result = deps.answer([SystemMessage(system), *state["messages"][-HISTORY:]])
-
-        cited = sorted({n for n in result.citations if 1 <= n <= len(hits)})
-        with lf.start_as_current_observation(
-            as_type="guardrail", name="check-grounding",
-            input={"answered": result.answered, "citations": result.citations, "passages": len(hits)},
-        ) as g:
-            grounded = result.answered and bool(result.answer.strip()) and bool(cited)
-            g.update(output={"grounded": grounded, "valid_citations": cited},
-                     level="DEFAULT" if grounded or not result.answered else "WARNING")
-
-        if not grounded:
-            return {"facts": {"kind": "no_content", "question": query}, "ui": ui}
-
-        used = [hits[n - 1].chunk for n in cited]
-        sources, seen = [], set()
-        for c in used:
-            if c.source_path not in seen:
-                seen.add(c.source_path)
-                sources.append({"title": c.title, "source_path": c.source_path})
-        # Money figures may only be repeated from cited policy passages (e.g. an admin fee).
-        allowed = sorted({a for c in used if c.doc_type in ("policy", "faq") for a in amounts_in(c.text)})
-        return {
-            "facts": {
-                "kind": "answer",
-                "final_text": result.answer.strip(),
-                "sources": sources,
-                "allowed_amounts": allowed,
-            },
-            "ui": [*ui, source_list(sources)],
-        }
+        return {"facts": facts, "ui": [*ui, source_list(facts["sources"])]}
 
     return run

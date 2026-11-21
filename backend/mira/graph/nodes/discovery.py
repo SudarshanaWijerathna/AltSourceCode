@@ -13,8 +13,8 @@ from mira.state import MiraState, TripProfile
 MAX_QUESTIONS = 3
 
 SLOT_TEXT = {
-    "tour": "which tour or kind of trip they want (a day tour or a longer trip, and where)",
-    "travellers": "who is travelling (number of adults, and children with their ages)",
+    "tour": "whether they want a day tour or a longer trip (if they already said, ask where instead)",
+    "travellers": "how many adults and children are travelling",
     "start_date": "their preferred start date",
     "child_ages": "the age of each child (infants under 2 travel free)",
 }

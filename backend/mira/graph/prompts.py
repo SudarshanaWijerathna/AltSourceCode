@@ -72,9 +72,9 @@ PASSAGES:
 # Instructions per facts kind, filled into FACTS so the responder knows what to do.
 INSTRUCTIONS = {
     "greeting": "Introduce yourself in one or two sentences (you help find, price and book tours in "
-                "Sri Lanka), then ask one question about their trip: a day tour or a longer trip, "
-                "and who is travelling.",
-    "ask": "Acknowledge what they told you in a few words, then ask exactly one question to get: {slot}.",
+                "Sri Lanka), then ask ONE simple question: are they after a day tour or a longer trip?",
+    "ask": "Acknowledge what they told you in a few words, then ask exactly one simple question to "
+           "get: {slot}. One question mark; do not join a second question with 'and'.",
     "suggest_tours": "Say these existing tours are the closest matches and briefly say why from the "
                      "facts. Offer to price one of them, or to pass their custom request to our travel "
                      "team, who will build an itinerary and confirm a price.",

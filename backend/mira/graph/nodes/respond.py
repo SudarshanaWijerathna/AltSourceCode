@@ -76,8 +76,10 @@ def facts_for(state: MiraState) -> dict:
         facts = {"kind": state["analysis"]["intent"]}
         if facts["kind"] not in INSTRUCTIONS:
             facts["kind"] = "greeting"
-    instruction = INSTRUCTIONS[facts["kind"]]
-    facts["instruction"] = instruction.format(slot=facts.get("slot", ""))
+    instruction = INSTRUCTIONS[facts["kind"]].format(slot=facts.get("slot", ""))
+    if facts.get("also"):
+        instruction = f"{facts['also']} Then: {instruction}"
+    facts["instruction"] = instruction
     return facts
 
 

@@ -7,7 +7,7 @@ from datetime import date
 
 from mira.graph.deps import Deps
 from mira.graph.nodes.discovery import profile_summary
-from mira.graph.ui import booking_form, price_breakdown, specialist_handoff, tour_card
+from mira.graph.ui import booking_form, price_breakdown, source_list, specialist_handoff, tour_card
 from mira.pricing.models import QuoteRequest, QuoteStatus
 from mira.state import MiraState
 from mira.tracing import get_langfuse
@@ -51,6 +51,9 @@ def make(deps: Deps):
                      "source": tour.source_path},
             "known": profile_summary(p),
         }
+        if state["analysis"].get("intent") == "manipulation":
+            base_facts["also"] = ("First say in one short sentence that prices, margins and rules are fixed "
+                                  "and can't be changed by request.")
 
         if quote.status is QuoteStatus.INVALID_REQUEST:
             profile = {k: v for k, v in p.items() if k != "start_date"}
@@ -70,11 +73,12 @@ def make(deps: Deps):
                 "enquiry_id": enquiry_id,
                 "ui": [tour_card(tour), price_breakdown(view, enquiry_id), booking_form(enquiry_id)],
             }
+        sources = [{"title": tour.title, "source_path": tour.source_path}]
         return {
-            "facts": {**base_facts, "kind": "handoff"},
+            "facts": {**base_facts, "kind": "handoff", "sources": sources},
             "enquiry_id": enquiry_id,
             "needs_specialist": True,
-            "ui": [tour_card(tour), specialist_handoff(HANDOFF_MESSAGE)],
+            "ui": [tour_card(tour), specialist_handoff(HANDOFF_MESSAGE), source_list(sources)],
         }
 
     return run

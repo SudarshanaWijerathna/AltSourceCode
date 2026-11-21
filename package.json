@@ -10,6 +10,7 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "test": "node scripts/py.mjs -m pytest",
     "eval": "node scripts/py.mjs -m mira.evals.run",
+    "eval:judge": "node scripts/py.mjs -m mira.evals.run --calibrate-only",
     "chat": "node scripts/py.mjs -m mira.cli"
   },
   "devDependencies": {

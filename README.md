@@ -22,7 +22,7 @@ npm start                   # one command: installs everything, starts API (:800
 | `npm run dev` | Run API and web (after setup) |
 | `npm test` | Backend unit tests (incl. pricing) |
 | `npm run chat` | Chat with Mira in the terminal (shows UI components and trace links) |
-| `npm run eval` | Run the evaluation suite → `evals/reports/` |
+| `npm run eval` | Run the evaluation suite → `evals/reports/latest.md` (options: `-- --only S02,P01`, `--category pricing`, `--no-judge`, `--label before`) |
 
 "Today" is configurable with `MIRA_TODAY` (default `2026-11-19`, which the seed evals assume).
 
@@ -123,6 +123,31 @@ in the trace and needs no embedding service.
   answer only if it cites passages that were actually retrieved; otherwise Mira says it doesn't have
   that information and offers to ask the team. Sources are appended to the reply and sent as a
   `source_list` component.
+
+## Evaluation
+
+`npm run eval` runs every case through the real agent (Gemini + Langfuse), then writes
+`evals/reports/<run>/report.md` and `results.json`, and copies the report to `evals/reports/latest.md`.
+Committed snapshots are in [`evals/snapshots/`](evals/snapshots/); problems found and fixed are in
+[`evals/findings.md`](evals/findings.md).
+
+- **Cases:** 55 = the dataset's 17 seed cases (read in place, unchanged) + 38 of ours
+  (`evals/cases/build_cases.py` → `mira_cases.jsonl`), 10 multi-turn, covering R1, R3–R7,
+  prompt injection and off-topic requests.
+- **Code checks** wherever there is an exact answer, on every turn: price and deposit equal the
+  pricing function; no money amount in a reply that isn't the stored quote or a policy fee; every UI
+  payload validates against the catalog and matches the stored quote; no costs, margins or internal
+  rate data shown; no words that exist only on unpublished pages; cited sources are published pages;
+  every quote saved as a private enquiry with cost, GP% and its trace id.
+- **LLM judge** (Gemini) for behaviour expectations. It sees the conversation, the components shown
+  and the text of the cited pages. Agreement with human labels on 10 calibration cases
+  (`evals/labels/judge_calibration.jsonl`, 5 real replies + 5 deliberately flawed) is in every report.
+- **Tracing:** each case runs in its own Langfuse session `eval-<run>-<case>` in the `eval`
+  environment, tagged `case:<id>`; the case verdict is attached as an `eval-case-pass` score, and the
+  report links the trace of every failing turn.
+
+Latest result (2026-11-21, `gemini-3.8-flash`, two consecutive runs): **55/55 cases**, price accuracy
+22/22, 0 invented prices, missing/expired handling 13/13, judge agreement 10/10.
 
 ## Dataset notes
 

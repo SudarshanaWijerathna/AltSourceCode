@@ -88,6 +88,8 @@ def make(deps: Deps):
 def route(state: MiraState) -> str:
     a = state["analysis"]
     intent = a["intent"]
+    if intent == "manipulation" and a.get("tour_id") and not missing_slots(state["profile"]):
+        return "pricing"  # ignore the injected rule; the pricing engine quotes the real price
     if intent in ("greeting", "off_topic", "manipulation"):
         return "respond"
     if a.get("unknown_tour") and not a.get("tour_id"):
