@@ -5,7 +5,9 @@ trip, answers from tour content with sources, quotes prices computed by determin
 rate workbook, renders its own UI from a fixed component catalog, and saves every quote as a private
 enquiry for staff.
 
-> Status: **project scaffold** — structure, contracts and tooling are in place; features are being built.
+> Status: **submission build (25 Nov 2026).** Requirements 1–8 are built and covered by the evaluation
+> suite; the bonus items are not (see [Known limitations](#known-limitations)). The evaluation report
+> is [`evals/REPORT.md`](evals/REPORT.md).
 
 ## Quick start
 
@@ -111,8 +113,8 @@ without touching the workbook.
 ## Generative UI
 
 Mira's backend chooses components from a fixed catalog (`backend/mira/ui/catalog.py`):
-`traveller_picker`, `tour_card`, `itinerary_day`, `price_breakdown`, `booking_form`,
-`specialist_handoff`, `source_list`. The graph builds them from code (a price card only from a
+`traveller_picker`, `date_picker`, `child_ages_picker`, `tour_card`, `itinerary_day`,
+`price_breakdown`, `booking_form`, `specialist_handoff`, `source_list`. The graph builds them from code (a price card only from a
 stored quote; itinerary days only from the tour page) and validates them twice before the browser:
 in the `respond` node and again in the AG-UI endpoint (`mira/agui.py`) just before encoding.
 
@@ -120,16 +122,28 @@ Over AG-UI each component is a **backend tool call** `show_<component>` whose ar
 payload. The frontend renders them with CopilotKit's `useRenderTool` (tool-call rendering,
 `frontend/components/MiraRenderers.tsx`) after a third check against Zod mirrors of the catalog
 (`frontend/lib/catalog.ts`); a wildcard renderer draws nothing for anything else. No component
-executes code in the browser except the traveller picker / "Price this tour" buttons (they send a
-message as the traveller) and the booking form.
+executes code in the browser except the input cards and "Choose this tour" (they send a message
+as the traveller, exactly as if it had been typed) and the booking form.
+
+**Guided flow.** Suggested tours carry a *Choose this tour* button. Once a tour is chosen its card is
+shown once (no button; `shown_tour` in the state stops it repeating), and each missing detail gets
+its own input card: *Who's travelling* (adult and child counters), *Start date* (a calendar limited
+to the dates we have rates for; for multi-day tours the last start date still ends before the rates
+expire), and *Children's ages* (only when children were given without ages). Discovery marks the
+card whose answer completes the details as `final`: only that card's button reads **Get my price**,
+every other reads **Continue**, and each stays disabled until it has been answered. Related-tour
+suggestions must visit a place the traveller named; duration and day-tour type only rank them.
 
 - **Brand:** `frontend/scripts/brand-css.mjs` generates CSS variables from
   `brand/brand_pack.json` before every dev/build; one accent colour per card, cards ≤ 320 px,
   transitions < 200 ms, no scroll animation. Typeface: Google Sans Flex (a deliberate override of
   the brand pack's Inter, which stays as the fallback stack). Chat scrollbars are hidden; it still scrolls.
-  Exception to the 200 ms rule: the start-screen transition (the Mira mark flying to the first reply
-  and the prompt bar sliding down) takes 600 ms so the change of layout is easy to follow; it is
-  switched off for users who prefer reduced motion.
+  Exceptions to the 200 ms rule, all on the start screen and all switched off for users who prefer
+  reduced motion: the Mira mark draws itself along its five strokes while the greeting fades in
+  (~0.7 s and ~1 s); the prompt bar pops in as a circle, widens and fades in its placeholder
+  (~2.3 s); and on the first prompt the mark flies to the first reply while the bar slides down
+  (600 ms), so the change of layout is easy to follow. On phones the prompt bar stays at the bottom
+  (one-handed reach).
 - **Mobile and desktop:** checked in headless Edge at 1280×900 and 390×844 (no horizontal overflow).
 - **Mock booking/payment:** `POST /booking` charges the stored quote's deposit (the browser never
   sends a price). "Test mode" lets the demo pick *card declined* or *booking system down*; both give
@@ -211,7 +225,7 @@ Committed snapshots are in [`evals/snapshots/`](evals/snapshots/); problems foun
   environment, tagged `case:<id>`; the case verdict is attached as an `eval-case-pass` score, and the
   report links the trace of every failing turn.
 
-Latest result (2026-11-21, `gemini-3.8-flash`, [`evals/snapshots/2026-11-21-extended-final.md`](evals/snapshots/2026-11-21-extended-final.md)):
+Latest result (2026-11-25, submitted code `3681a62`, `gemini-3.8-flash`, [`evals/snapshots/2026-11-25-final.md`](evals/snapshots/2026-11-25-final.md)); the written report is [`evals/REPORT.md`](evals/REPORT.md):
 **61/61 cases**, price accuracy 25/25, 0 invented prices, missing/expired handling 14/14, judge
 agreement 10/10. One earlier run during a Gemini outage scored 47/61 (all failures were dropped
 connections; still 0 invented prices, see `evals/findings.md`).
@@ -237,8 +251,39 @@ Data issues the loader handles (all reported in `RateBook.warnings`):
 
 ## Known limitations
 
-_To be filled in as the build progresses._
+- **Bonus items not built.** No MCP server, no model routing (`MIRA_MODEL_SMALL` is configured but
+  unused: every LLM call uses `MIRA_MODEL_LARGE`), no personalisation or consent flow.
+- **Conversation state is in memory.** The LangGraph checkpointer is `InMemorySaver`, so an API
+  restart ends open conversations. Enquiries, visitor memory and drafts are in SQLite and survive.
+  A production build would use a persistent checkpointer (e.g. Postgres).
+- **The judge is the same model family as Mira** (Gemini). Its agreement with my labels is 10/10, but
+  10 cases is a small calibration set and a judge from another provider would be a stronger check.
+- **LLM variance and outages.** Eval results can differ slightly between runs; a run during a
+  Gemini outage scored 47/61, all failures being dropped connections (`evals/findings.md`). Code
+  checks (price, UI payloads, draft content) are deterministic; the judge and wording are not.
+- **Deliberately not quoted** (Mira hands these to a specialist instead of guessing): T06 (page and
+  rate sheet disagree on nights), T14 (ended offer), T15 (draft), H03 Jan–Mar 2027 (two different
+  rates for the same nights), H04 single rooms and H07 after Oct 2026 (no rates), more than 20
+  travellers.
+- **Retrieval is lexical (BM25).** Precise on this small corpus of names and policy terms, but it
+  would miss paraphrases a larger corpus would need embeddings for.
+- **Staff sign-in is a shared key per user** from an environment variable, enough for role checks in
+  a demo; a real deployment needs proper identity (SSO) and audit logs.
+- **Payment and booking are mocked** (`POST /booking` with a test-mode switch).
+- **No photos.** The dataset has none, so AI-written drafts say so instead of inventing images.
+- **Frontend checks are scripted browser runs** (headless Edge at 1280×900 and 390×844), not a
+  frontend unit-test suite.
 
 ## AI tools used
 
-Claude Code (Anthropic) was used to help scaffold this repository.
+- **Claude Code (Anthropic)** was my pair programmer throughout: scaffolding, the LangGraph nodes,
+  pricing engine and tests, the CopilotKit frontend and its animations, the eval harness, README
+  and report drafts. I directed the design, reviewed every change, ran and checked the results, and
+  can explain and change any part of the code.
+- **Gemini** (`gemini-3.8-flash`) is the model inside Mira (router, reply writer, content answers,
+  content-drafting agent) and the eval judge.
+- **Code I did not write:** the libraries in `package.json` / `pyproject.toml` (LangGraph, FastAPI,
+  CopilotKit, Langfuse, …) and the dataset in `docs/ceylon-compass-dataset/` (read in place,
+  unchanged). The Mira mark is my own design. Everything
+  else in `backend/`, `frontend/`, `evals/` and `scripts/` was written for this project as described
+  above.
