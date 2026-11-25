@@ -7,7 +7,7 @@ enquiry for staff.
 
 > Status: **submission build (25 Nov 2026).** Requirements 1–8 are built and covered by the evaluation
 > suite; the bonus items are not (see [Known limitations](#known-limitations)). The evaluation report
-> is [`evals/REPORT.md`](evals/REPORT.md).
+> is [`evals/REPORT.md`](evals/REPORT.md) (PDF copy: [`evals/REPORT.pdf`](evals/REPORT.pdf)).
 
 ## Quick start
 
@@ -225,7 +225,7 @@ Committed snapshots are in [`evals/snapshots/`](evals/snapshots/); problems foun
   environment, tagged `case:<id>`; the case verdict is attached as an `eval-case-pass` score, and the
   report links the trace of every failing turn.
 
-Latest result (2026-11-25, submitted code `3681a62`, `gemini-3.8-flash`, [`evals/snapshots/2026-11-25-final.md`](evals/snapshots/2026-11-25-final.md)); the written report is [`evals/REPORT.md`](evals/REPORT.md):
+Latest result (2026-11-25, submitted code, `gemini-3.8-flash`, [`evals/snapshots/2026-11-25-final.md`](evals/snapshots/2026-11-25-final.md)); the written report is [`evals/REPORT.md`](evals/REPORT.md):
 **61/61 cases**, price accuracy 25/25, 0 invented prices, missing/expired handling 14/14, judge
 agreement 10/10. One earlier run during a Gemini outage scored 47/61 (all failures were dropped
 connections; still 0 invented prices, see `evals/findings.md`).

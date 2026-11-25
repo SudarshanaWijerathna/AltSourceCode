@@ -9,9 +9,9 @@ report for the final run (every case, every check, a Langfuse trace link per cas
 
 ## 1. Results on the submitted code
 
-Run `20261125-140815-final` · code `3681a62` (the submitted application code; later commits change
-documentation only) · configured date 19 Nov 2026 · model and judge `gemini-3.8-flash` · rates
-`rate_sheet_2026-27.xlsx@a16dd63ffb7e` · 61 cases, 78 turns · 230 s.
+Run `20261125-195813-final-2` · the submitted code (the last code change is the hand-over fix in
+section 4) · configured date 19 Nov 2026 · model and judge `gemini-3.8-flash` · rates
+`rate_sheet_2026-27.xlsx@a16dd63ffb7e` · 61 cases, 78 turns · 235 s.
 
 | Target (from the brief) | Goal | Result | Met |
 | --- | --- | --- | --- |
@@ -45,6 +45,7 @@ expectation, the judge passes):
 | No costs, margins or internal rate data shown (R5) | 78/78 |
 | No words that exist only on unpublished (draft) pages (R4) | 78/78 |
 | Every quote saved as a private enquiry with cost, GP% and its trace id (R7) | 27/27 |
+| LLM judge on cases with a behaviour expectation | 38/38 |
 | Turns that errored | 0 |
 
 All results are real numbers from that run, not hand-edited. The same suite scored 52/55 before the
@@ -136,7 +137,13 @@ clicked UI buttons. This was fixed with:
 - the tour card is shown once;
 - guided input cards whose button only says "Get my price" when that answer completes the details.
 
-Five unit tests now cover it (`backend/tests/test_graph.py`). The final run above is on the fixed code.
+Five unit tests now cover it (`backend/tests/test_graph.py`).
+
+While recording the demo video, the same mistake showed up by a second path. "Do you have a tour to
+Jaffna?" offered the Kandy City Tour, because the router read "Jaffna" as an unknown tour rather than
+a place, and the hand-over node then suggested tours on duration alone. The hand-over now suggests
+related tours only when they visit a place the traveller named. A regression test covers it, and it
+fails on the old code. The final run above is on the fixed code.
 
 ## 5. Behaviour under failure
 

@@ -35,7 +35,9 @@ def make(deps: Deps):
             return {"facts": answer, "enquiry_id": enquiry_id, "needs_specialist": True,
                     "ui": [source_list(answer["sources"]), handoff_ui]}
 
-        related = suggest_tours(p, deps.tours, limit=2)
+        # Related tours must visit a place the traveller named. With no named place (e.g. "Jaffna" read
+        # as an unknown tour), length or day-tour type alone would suggest unrelated tours, so none.
+        related = suggest_tours(p, deps.tours, limit=2) if p.get("destinations") else []
         return {
             "facts": {
                 "kind": "unknown_tour",

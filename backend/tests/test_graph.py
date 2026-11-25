@@ -434,3 +434,10 @@ def test_unrelated_tours_never_suggested_for_named_places():
     picked = suggest_tours({"destinations": ["sigiriya"], "duration_days": 2, "trip_type": "day_tour"},
                            published_tours())
     assert "T02" not in [t.id for t in picked]   # Kandy City Tour does not visit Sigiriya
+
+
+def test_handoff_suggests_no_tours_without_a_named_place():
+    mira, _, _ = make_mira(FakeAnalyzer(
+        A(intent="trip_planning", unknown_tour="Jaffna tour", trip_type="day_tour")))
+    r = mira.turn(sid(), "Do you have a tour to Jaffna?")
+    assert ui_of(r, "tour_card") == [], "no unrelated tours (e.g. Kandy City Tour) for an unknown place"
