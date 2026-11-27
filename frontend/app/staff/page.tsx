@@ -71,8 +71,8 @@ function EnquiryRow({ e, onSave }: { e: Enquiry; onSave: (id: string, patch: Par
       <td>
         {e.needs_specialist
           ? <span className="pill pill--flag" title={e.reason ?? ""}>Specialist: {e.status.replace(/_/g, " ")}</span>
-          : <span className="pill">{e.status}</span>}
-        {e.reason && e.needs_specialist && <div className="mira-source">{e.reason}</div>}
+          : <span className={`pill pill--${e.status}`}>{e.status}</span>}
+        {e.reason && e.needs_specialist && e.reason !== e.status.replace(/_/g, " ") && <div className="mira-source">{e.reason}</div>}
       </td>
       <td className="num">{e.price_usd ? `$${e.price_usd}` : "—"}<div className="mira-source">{e.deposit_usd ? `dep $${e.deposit_usd}` : ""}</div></td>
       <td className="num">{e.cost_usd ? `$${e.cost_usd}` : "—"}<div className="mira-source">{e.gross_profit_pct ? `GP ${e.gross_profit_pct}%` : ""}</div></td>
@@ -83,13 +83,13 @@ function EnquiryRow({ e, onSave }: { e: Enquiry; onSave: (id: string, patch: Par
         <select value={status} onChange={(ev) => { setStatus(ev.target.value); setSaved(false); }}>
           {FOLLOW_UP.map((s) => <option key={s} value={s}>{s.replace(/_/g, " ")}</option>)}
         </select>
-        <textarea value={notes} onChange={(ev) => { setNotes(ev.target.value); setSaved(false); }} rows={2} placeholder="Notes" />
-        <button className="mira-button mira-button--ghost" disabled={!dirty}
-                onClick={async () => { await onSave(e.id, { notes, follow_up_status: status }); setSaved(true); }}>
-          {saved ? "Saved" : "Save"}
-        </button>
+        <textarea value={notes} onChange={(ev) => { setNotes(ev.target.value); setSaved(false); }} rows={1} placeholder="Notes" />
+        {dirty
+          ? <button className="mira-button mira-button--ghost"
+                    onClick={async () => { await onSave(e.id, { notes, follow_up_status: status }); setSaved(true); }}>Save</button>
+          : saved && <span className="staff-saved">Saved</span>}
       </td>
-      <td>{e.trace_url ? <a href={e.trace_url} target="_blank" rel="noreferrer">trace</a> : "—"}</td>
+      <td>{e.trace_url ? <a className="staff-link" href={e.trace_url} target="_blank" rel="noreferrer">Trace</a> : "—"}</td>
     </tr>
   );
 }
@@ -110,8 +110,8 @@ function Enquiries({ call }: { call: (p: string, i?: RequestInit) => Promise<any
         {(["all", "flagged", "priced"] as const).map((f) => (
           <button key={f} className={`mira-chip ${filter === f ? "is-active" : ""}`} onClick={() => setFilter(f)}>{f}</button>
         ))}
-        <button className="mira-button mira-button--ghost" onClick={load}>Refresh</button>
-        <span className="mira-source">{rows ? `${shown.length} of ${rows.length}` : "Loading…"}</span>
+        <button className="mira-chip staff-refresh" onClick={load}>Refresh</button>
+        <span className="mira-source staff-count">{rows ? `${shown.length} of ${rows.length}` : "Loading…"}</span>
       </div>
       <div className="table-wrap">
         <table className="staff-table">
@@ -139,20 +139,23 @@ function Content({ call, me }: { call: (p: string, i?: RequestInit) => Promise<a
   return (
     <section>
       <form className="staff-command" onSubmit={(e) => { e.preventDefault(); run(() => call("/staff/drafts", { method: "POST", body: JSON.stringify({ command }) })); }}>
-        <input value={command} onChange={(e) => setCommand(e.target.value)} aria-label="Content command" />
+        <input value={command} onChange={(e) => setCommand(e.target.value)} aria-label="Content command"
+               placeholder="Ask the content agent for a new tour page…" />
         <button className="mira-button" disabled={busy}>{busy ? "Working…" : "Create draft"}</button>
       </form>
-      <p className="mira-source">The content agent writes a draft from our published pages only. Only an Approver can publish it; until then Mira never uses it.</p>
+      <p className="mira-source staff-hint">The content agent writes a draft from our published pages only. Only an Approver can publish it; until then Mira never uses it.</p>
       {error && <p className="staff-error">{error}</p>}
-      {(drafts ?? []).map((d) => (
-        <article key={d.id} className={`draft draft--${d.status}`}>
+      {!!drafts?.length && <div className="staff-drafts">
+      {drafts.map((d) => (
+        <article key={d.id} className={`draft mira-card draft--${d.status}`}>
           <header className="draft__head">
             <div>
-              <strong>{d.title}</strong> <code>{d.tour_id}</code>
+              <p className="mira-card__label">New tour page · {d.tour_id}</p>
+              <strong className="draft__title">{d.title}</strong>
               <div className="mira-source">“{d.command}” · by {d.created_by} · {d.created_at.slice(0, 16).replace("T", " ")}
-                {d.trace_url && <> · <a href={d.trace_url} target="_blank" rel="noreferrer">trace</a></>}</div>
+                {d.trace_url && <> · <a className="staff-link" href={d.trace_url} target="_blank" rel="noreferrer">Trace</a></>}</div>
             </div>
-            <span className={`pill ${d.status === "draft" ? "pill--flag" : ""}`}>{d.status}{d.decided_by ? ` by ${d.decided_by}` : ""}</span>
+            <span className={`pill pill--${d.status}`}>{d.status}{d.decided_by ? ` by ${d.decided_by}` : ""}</span>
           </header>
           {d.staff_notes && <ul className="draft__notes">{d.staff_notes.split("\n").map((n) => <li key={n}>{n}</li>)}</ul>}
           <details><summary>Preview page</summary><pre className="draft__md">{d.markdown}</pre></details>
@@ -168,6 +171,7 @@ function Content({ call, me }: { call: (p: string, i?: RequestInit) => Promise<a
           )}
         </article>
       ))}
+      </div>}
       {drafts?.length === 0 && <p className="muted">No drafts yet.</p>}
     </section>
   );
